@@ -6,6 +6,36 @@ import '../services/powershell_service.dart';
 import '../services/update_service.dart';
 import '../widgets/update_dialog.dart';
 
+enum SearchMode { duplicates, fileSearch }
+
+class FoundFileInfo {
+  final String name;
+  final String path;
+  final int sizeBytes;
+  final String extension;
+  final DateTime lastModified;
+
+  FoundFileInfo({
+    required this.name,
+    required this.path,
+    required this.sizeBytes,
+    required this.extension,
+    required this.lastModified,
+  });
+
+  factory FoundFileInfo.fromMap(Map<String, dynamic> map) {
+    return FoundFileInfo(
+      name: map['nome'] as String? ?? map['name'] as String? ?? '',
+      path: map['caminho'] as String? ?? map['path'] as String? ?? '',
+      sizeBytes: map['tamanho'] as int? ?? map['sizeBytes'] as int? ?? 0,
+      extension: map['extensao'] as String? ?? map['extension'] as String? ?? '',
+      lastModified: map['modificado'] != null
+          ? DateTime.tryParse(map['modificado'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+}
+
 class CommanderState {
   final bool isLoading;
   final String prompt;
@@ -38,12 +68,18 @@ class CommanderState {
   final String extensaoCustomizada;
   final String pastaCustomizada;
 
-  // Módulo 4: Procurar / Duplicados
+  // Módulo 4: Procurar / Duplicados & Busca Avançada
   final String? diretorioBusca;
+  final List<String> searchPaths;
+  final bool includeSubfolders;
+  final SearchMode searchMode;
   final String categoriaFiltroBusca; // 'todos', 'imagens', 'videos', 'audios', 'textos', 'instaladores'
+  final String searchFileNameQuery;
+  final String searchSizeFilter; // "Todos", "< 10 MB", "10-100 MB", "100 MB - 1 GB", "> 1 GB"
   final bool isEscaneando;
   final List<Map<String, dynamic>> gruposConflito;
   final int grupoConflitoSelecionado;
+  final List<FoundFileInfo> foundFiles;
 
   // Recursos Globais de Automação
   final bool organizarAposTransferir;
@@ -96,10 +132,16 @@ class CommanderState {
     this.extensaoCustomizada = '',
     this.pastaCustomizada = '',
     this.diretorioBusca,
+    this.searchPaths = const [],
+    this.includeSubfolders = true,
+    this.searchMode = SearchMode.duplicates,
     this.categoriaFiltroBusca = 'todos',
+    this.searchFileNameQuery = '',
+    this.searchSizeFilter = 'Todos',
     this.isEscaneando = false,
     this.gruposConflito = const [],
     this.grupoConflitoSelecionado = 0,
+    this.foundFiles = const [],
     this.organizarAposTransferir = false,
     this.caminhoGoogleDriveDetectado,
     this.hwidAtual = '',
@@ -136,10 +178,16 @@ class CommanderState {
     String? extensaoCustomizada,
     String? pastaCustomizada,
     String? diretorioBusca,
+    List<String>? searchPaths,
+    bool? includeSubfolders,
+    SearchMode? searchMode,
     String? categoriaFiltroBusca,
+    String? searchFileNameQuery,
+    String? searchSizeFilter,
     bool? isEscaneando,
     List<Map<String, dynamic>>? gruposConflito,
     int? grupoConflitoSelecionado,
+    List<FoundFileInfo>? foundFiles,
     bool? organizarAposTransferir,
     String? caminhoGoogleDriveDetectado,
     String? hwidAtual,
@@ -176,11 +224,17 @@ class CommanderState {
       extensaoCustomizada: extensaoCustomizada ?? this.extensaoCustomizada,
       pastaCustomizada: pastaCustomizada ?? this.pastaCustomizada,
       diretorioBusca: diretorioBusca ?? this.diretorioBusca,
+      searchPaths: searchPaths ?? this.searchPaths,
+      includeSubfolders: includeSubfolders ?? this.includeSubfolders,
+      searchMode: searchMode ?? this.searchMode,
       categoriaFiltroBusca: categoriaFiltroBusca ?? this.categoriaFiltroBusca,
+      searchFileNameQuery: searchFileNameQuery ?? this.searchFileNameQuery,
+      searchSizeFilter: searchSizeFilter ?? this.searchSizeFilter,
       isEscaneando: isEscaneando ?? this.isEscaneando,
       gruposConflito: gruposConflito ?? this.gruposConflito,
       grupoConflitoSelecionado:
           grupoConflitoSelecionado ?? this.grupoConflitoSelecionado,
+      foundFiles: foundFiles ?? this.foundFiles,
       organizarAposTransferir:
           organizarAposTransferir ?? this.organizarAposTransferir,
       caminhoGoogleDriveDetectado:
@@ -347,7 +401,7 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
     } else if (state.moduloSelecionado == 3) {
       state = state.copyWith(diretorioOrganizar: drive);
     } else if (state.moduloSelecionado == 4) {
-      state = state.copyWith(diretorioBusca: drive);
+      adicionarSearchPath(drive);
     }
   }
 
@@ -461,13 +515,60 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
     );
   }
 
-  // Métodos Módulo 4: Procurar / Duplicados
+  // Métodos Módulo 4: Procurar / Duplicados & Localizar Arquivos
   void setDiretorioBusca(String? path) {
-    state = state.copyWith(diretorioBusca: path);
+    if (path != null && path.isNotEmpty) {
+      adicionarSearchPath(path);
+    }
+  }
+
+  void adicionarSearchPath(String path) {
+    if (path.isEmpty) return;
+    final Set<String> atuais = Set.from(state.searchPaths);
+    atuais.add(path);
+    state = state.copyWith(
+      searchPaths: atuais.toList(),
+      diretorioBusca: atuais.isNotEmpty ? atuais.first : null,
+    );
+  }
+
+  void removerSearchPath(int index) {
+    if (index >= 0 && index < state.searchPaths.length) {
+      final novas = List<String>.from(state.searchPaths)..removeAt(index);
+      state = state.copyWith(
+        searchPaths: novas,
+        diretorioBusca: novas.isNotEmpty ? novas.first : null,
+      );
+    }
+  }
+
+  void limparSearchPaths() {
+    state = state.copyWith(
+      searchPaths: [],
+      diretorioBusca: null,
+      gruposConflito: [],
+      foundFiles: [],
+    );
+  }
+
+  void toggleIncludeSubfolders(bool valor) {
+    state = state.copyWith(includeSubfolders: valor);
+  }
+
+  void setSearchMode(SearchMode mode) {
+    state = state.copyWith(searchMode: mode);
   }
 
   void setCategoriaFiltro(String categoria) {
     state = state.copyWith(categoriaFiltroBusca: categoria);
+  }
+
+  void setSearchFileNameQuery(String query) {
+    state = state.copyWith(searchFileNameQuery: query);
+  }
+
+  void setSearchSizeFilter(String sizeFilter) {
+    state = state.copyWith(searchSizeFilter: sizeFilter);
   }
 
   void selecionarGrupo(int index) {
@@ -767,7 +868,7 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
   }
 
   Future<void> dispararVarreduraDuplicados() async {
-    if (state.diretorioBusca == null || state.diretorioBusca!.isEmpty) {
+    if (state.searchPaths.isEmpty) {
       return;
     }
 
@@ -776,13 +877,14 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
       isEscaneando: true,
       progressoExecucao: 0.0,
       statusOperacao: 'Analisando arquivos e calculando hashes SHA-256...',
-      logsTerminal: '${state.logsTerminal}> Iniciando varredura de duplicados (filtro: ${state.categoriaFiltroBusca}) em: ${state.diretorioBusca}...\n',
+      logsTerminal: '${state.logsTerminal}> Iniciando varredura de duplicados em ${state.searchPaths.length} pasta(s) (filtro: ${state.categoriaFiltroBusca}, subpastas: ${state.includeSubfolders})...\n',
     );
 
     try {
       final grupos = await _powerShellService.detectarDuplicados(
-        diretorioRaiz: state.diretorioBusca!,
+        searchPaths: state.searchPaths,
         categoriaFiltro: state.categoriaFiltroBusca,
+        includeSubfolders: state.includeSubfolders,
       );
 
       state = state.copyWith(
@@ -805,14 +907,55 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
     }
   }
 
+  Future<void> dispararBuscaArquivos() async {
+    if (state.searchPaths.isEmpty) {
+      return;
+    }
+
+    state = state.copyWith(
+      isLoading: true,
+      isEscaneando: true,
+      progressoExecucao: 0.0,
+      statusOperacao: 'Localizando arquivos por filtros...',
+      logsTerminal: '${state.logsTerminal}> Iniciando busca de arquivos em ${state.searchPaths.length} pasta(s) (termo: "${state.searchFileNameQuery}", tamanho: ${state.searchSizeFilter})...\n',
+    );
+
+    try {
+      final resultados = await _powerShellService.searchFiles(
+        searchPaths: state.searchPaths,
+        includeSubfolders: state.includeSubfolders,
+        categoriaFiltro: state.categoriaFiltroBusca,
+        nameQuery: state.searchFileNameQuery,
+        sizeFilter: state.searchSizeFilter,
+      );
+
+      state = state.copyWith(
+        isLoading: false,
+        isEscaneando: false,
+        progressoExecucao: 1.0,
+        foundFiles: resultados,
+        statusOperacao: 'Busca concluída. ${resultados.length} arquivo(s) localizado(s).',
+        logsTerminal: '${state.logsTerminal}> Localizados ${resultados.length} arquivo(s) correspondente(s).\n',
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        isEscaneando: false,
+        progressoExecucao: 0.0,
+        statusOperacao: 'Busca de arquivos interrompida ou com erro.',
+        logsTerminal: '${state.logsTerminal}> [BUSCA CANCELADA OU ERRO]: $e\n',
+      );
+    }
+  }
+
   Future<void> cancelarVarredura() async {
     await _powerShellService.cancelarOperacaoAtiva();
     state = state.copyWith(
       isLoading: false,
       isEscaneando: false,
       progressoExecucao: 0.0,
-      statusOperacao: 'Varredura interrompida pelo usuário.',
-      logsTerminal: '${state.logsTerminal}> Varredura cancelada pelo usuário.\n',
+      statusOperacao: 'Operação interrompida pelo usuário.',
+      logsTerminal: '${state.logsTerminal}> Operação cancelada pelo usuário.\n',
     );
   }
 

@@ -18,6 +18,7 @@ dependencies:
   url_launcher: ^6.3.0
   shared_preferences: ^2.2.3
   crypto: ^3.0.3
+  window_manager: ^0.3.9
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

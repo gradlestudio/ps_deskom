@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as p;
+import '../providers/commander_provider.dart';
 
 class PowerShellService {
   Process? _processoAtivo;
+  int _processCount = 0;
 
   Future<void> cancelarOperacaoAtiva() async {
     if (_processoAtivo != null) {
@@ -16,17 +18,72 @@ class PowerShellService {
     }
   }
 
+  Future<String> executeScriptFile(String psScript) async {
+    final tempDir = Directory.systemTemp;
+    final tempFile = File(
+      p.join(
+        tempDir.path,
+        'ps_deskom_script_${DateTime.now().millisecondsSinceEpoch}_${_processCount++}.ps1',
+      ),
+    );
+
+    final utf8Bom = [0xEF, 0xBB, 0xBF];
+    final scriptBytes = utf8.encode(psScript);
+    await tempFile.writeAsBytes([...utf8Bom, ...scriptBytes]);
+
+    try {
+      final process = await Process.start(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-File',
+          tempFile.path,
+        ],
+        runInShell: true,
+      );
+
+      _processoAtivo = process;
+
+      final List<int> stdoutBytes = [];
+      final List<int> stderrBytes = [];
+
+      process.stdout.listen((data) => stdoutBytes.addAll(data));
+      process.stderr.listen((data) => stderrBytes.addAll(data));
+
+      final exitCode = await process.exitCode;
+      final stdout = utf8.decode(stdoutBytes, allowMalformed: true);
+      final stderr = utf8.decode(stderrBytes, allowMalformed: true);
+
+      if (exitCode == 0) {
+        return stdout;
+      } else {
+        final errMessage = stderr.trim().isNotEmpty ? stderr.trim() : stdout.trim();
+        throw Exception('Erro ao executar script PowerShell (exitCode $exitCode): $errMessage');
+      }
+    } finally {
+      _processoAtivo = null;
+      if (await tempFile.exists()) {
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+      }
+    }
+  }
+
   Future<String?> detectarCaminhoGoogleDrive() async {
     final psScript = '''
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
 \$drives = Get-PSDrive -PSProvider FileSystem | Where-Object { \$_.Description -match "Google" -or \$_.Name -eq "G" }
 if (\$drives) {
     \$d = \$drives[0]
     \$root = \$d.Root
-    if (Test-Path (Join-Path \$root "Meu Drive")) {
+    if (Test-Path -LiteralPath (Join-Path \$root "Meu Drive")) {
         Write-Output (Join-Path \$root "Meu Drive")
         exit
     }
-    if (Test-Path (Join-Path \$root "My Drive")) {
+    if (Test-Path -LiteralPath (Join-Path \$root "My Drive")) {
         Write-Output (Join-Path \$root "My Drive")
         exit
     }
@@ -44,43 +101,26 @@ if (\$drives) {
 )
 
 foreach (\$p in \$paths) {
-    if (Test-Path \$p) {
+    if (Test-Path -LiteralPath \$p) {
         Write-Output \$p
         exit
     }
 }
 ''';
 
-    final res = (await executeEncoded(psScript)).trim();
-    if (res.isNotEmpty && !res.startsWith('Erro') && !res.startsWith('Exceção')) {
-      return res;
-    }
+    try {
+      final res = (await executeScriptFile(psScript)).trim();
+      if (res.isNotEmpty && !res.startsWith('Erro') && !res.startsWith('Exceção')) {
+        return res;
+      }
+    } catch (_) {}
     return null;
   }
 
   Future<String> execute(String command) async {
     try {
       final fullCommand = '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;\n$command';
-      final result = await Process.run(
-        'powershell.exe',
-        [
-          '-NoProfile',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-Command',
-          fullCommand,
-        ],
-        runInShell: true,
-      );
-
-      if (result.exitCode == 0) {
-        return result.stdout.toString();
-      } else {
-        final stderr = result.stderr.toString().trim();
-        final stdout = result.stdout.toString().trim();
-        final errMessage = stderr.isNotEmpty ? stderr : stdout;
-        return 'Erro na execução do PowerShell (Exit Code ${result.exitCode}):\n$errMessage';
-      }
+      return await executeScriptFile(fullCommand);
     } catch (e) {
       return 'Exceção ao executar comando PowerShell: $e';
     }
@@ -89,35 +129,9 @@ foreach (\$p in \$paths) {
   Future<String> executeEncoded(String psScript) async {
     try {
       final fullScript = '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;\n$psScript';
-      final bytes = <int>[];
-      for (final charCode in fullScript.codeUnits) {
-        bytes.add(charCode & 0xFF);
-        bytes.add((charCode >> 8) & 0xFF);
-      }
-      final encoded = base64.encode(bytes);
-
-      final result = await Process.run(
-        'powershell.exe',
-        [
-          '-NoProfile',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-EncodedCommand',
-          encoded,
-        ],
-        runInShell: true,
-      );
-
-      if (result.exitCode == 0) {
-        return result.stdout.toString();
-      } else {
-        final stderr = result.stderr.toString().trim();
-        final stdout = result.stdout.toString().trim();
-        final errMessage = stderr.isNotEmpty ? stderr : stdout;
-        return 'Erro (Exit Code ${result.exitCode}): $errMessage';
-      }
+      return await executeScriptFile(fullScript);
     } catch (e) {
-      return 'Exceção ao executar comando codificado: $e';
+      return 'Exceção ao executar script: $e';
     }
   }
 
@@ -147,10 +161,11 @@ foreach (\$p in \$paths) {
       logBuffer.writeln('[${i + 1}/$total] Extraindo "$fileName"...');
 
       final psScript = '''
-\$src = "$filePath"
-\$dest = "$targetDir"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+\$src = '${filePath.replaceAll("'", "''")}'
+\$dest = '${targetDir.replaceAll("'", "''")}'
 
-if (-not (Test-Path -Path \$dest)) {
+if (-not (Test-Path -LiteralPath \$dest)) {
     New-Item -ItemType Directory -Force -Path \$dest | Out-Null
 }
 
@@ -166,7 +181,7 @@ if (\$src -like "*.zip") {
 Write-Output "Concluído: \$src -> \$dest"
 ''';
 
-      final res = await executeEncoded(psScript);
+      final res = await executeScriptFile(psScript);
       logBuffer.writeln(res.trim());
       logBuffer.writeln('----------------------------------------');
     }
@@ -198,37 +213,43 @@ Write-Output "Concluído: \$src -> \$dest"
 
       logBuffer.writeln('[${i + 1}/$total] Copiando "$itemName"...');
 
+      final escapedSrc = srcPath.replaceAll("'", "''");
+      final escapedDest = diretorioDestino.replaceAll("'", "''");
+      final escapedName = itemName.replaceAll("'", "''");
+
       String psScript;
       if (regraColisao == 'pular') {
         psScript = '''
-\$src = "$srcPath"
-\$destDir = "$diretorioDestino"
-\$name = "$itemName"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+\$src = '$escapedSrc'
+\$destDir = '$escapedDest'
+\$name = '$escapedName'
 \$target = Join-Path \$destDir \$name
 
-if (-not (Test-Path -Path \$destDir)) {
+if (-not (Test-Path -LiteralPath \$destDir)) {
     New-Item -ItemType Directory -Force -Path \$destDir | Out-Null
 }
 
-if (Test-Path -Path \$target) {
+if (Test-Path -LiteralPath \$target) {
     Write-Output "PULADO (já existe): \$target"
 } else {
-    Copy-Item -Path \$src -Destination \$target -Recurse -Force
+    Copy-Item -LiteralPath \$src -Destination \$target -Recurse -Force
     Write-Output "COPIADO: \$src -> \$target"
 }
 ''';
       } else if (regraColisao == 'manter') {
         psScript = '''
-\$src = "$srcPath"
-\$destDir = "$diretorioDestino"
-\$name = "$itemName"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+\$src = '$escapedSrc'
+\$destDir = '$escapedDest'
+\$name = '$escapedName'
 \$target = Join-Path \$destDir \$name
 
-if (-not (Test-Path -Path \$destDir)) {
+if (-not (Test-Path -LiteralPath \$destDir)) {
     New-Item -ItemType Directory -Force -Path \$destDir | Out-Null
 }
 
-if (Test-Path -Path \$target) {
+if (Test-Path -LiteralPath \$target) {
     \$ext = [System.IO.Path]::GetExtension(\$name)
     \$base = [System.IO.Path]::GetFileNameWithoutExtension(\$name)
     \$count = 1
@@ -236,30 +257,30 @@ if (Test-Path -Path \$target) {
         \$newName = "\${base}_copia(\$count)\$ext"
         \$target = Join-Path \$destDir \$newName
         \$count++
-    } while (Test-Path -Path \$target)
+    } while (Test-Path -LiteralPath \$target)
 }
 
-Copy-Item -Path \$src -Destination \$target -Recurse -Force
+Copy-Item -LiteralPath \$src -Destination \$target -Recurse -Force
 Write-Output "COPIADO (CÓPIA): \$src -> \$target"
 ''';
       } else {
-        // Default: 'substituir'
         psScript = '''
-\$src = "$srcPath"
-\$destDir = "$diretorioDestino"
-\$name = "$itemName"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+\$src = '$escapedSrc'
+\$destDir = '$escapedDest'
+\$name = '$escapedName'
 \$target = Join-Path \$destDir \$name
 
-if (-not (Test-Path -Path \$destDir)) {
+if (-not (Test-Path -LiteralPath \$destDir)) {
     New-Item -ItemType Directory -Force -Path \$destDir | Out-Null
 }
 
-Copy-Item -Path \$src -Destination \$target -Recurse -Force
+Copy-Item -LiteralPath \$src -Destination \$target -Recurse -Force
 Write-Output "COPIADO (SUBSTITUÍDO): \$src -> \$target"
 ''';
       }
 
-      final res = await executeEncoded(psScript);
+      final res = await executeScriptFile(psScript);
       logBuffer.writeln(res.trim());
       logBuffer.writeln('----------------------------------------');
     }
@@ -309,28 +330,33 @@ Write-Output "COPIADO (SUBSTITUÍDO): \$src -> \$target"
 
       logBuffer.writeln('[${i + 1}/$total] Movendo "$itemName"...');
 
+      final escapedSrc = srcPath.replaceAll("'", "''");
+      final escapedDest = diretorioDestino.replaceAll("'", "''");
+      final escapedName = itemName.replaceAll("'", "''");
+
       final psScript = '''
-\$src = "$srcPath"
-\$destDir = "$diretorioDestino"
-\$name = "$itemName"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+\$src = '$escapedSrc'
+\$destDir = '$escapedDest'
+\$name = '$escapedName'
 \$target = Join-Path \$destDir \$name
 
-if (-not (Test-Path -Path \$destDir)) {
+if (-not (Test-Path -LiteralPath \$destDir)) {
     New-Item -ItemType Directory -Force -Path \$destDir | Out-Null
 }
 
 try {
     if ("$sobrescreverExistentes" -eq "true") {
-        if (Test-Path -Path \$target) {
-            Remove-Item -Path \$target -Recurse -Force -ErrorAction Stop
+        if (Test-Path -LiteralPath \$target) {
+            Remove-Item -LiteralPath \$target -Recurse -Force -ErrorAction Stop
         }
-        Move-Item -Path \$src -Destination \$target -Force -ErrorAction Stop
+        Move-Item -LiteralPath \$src -Destination \$target -Force -ErrorAction Stop
         Write-Output "MOVIDO (Sobrescrito): \$src -> \$target"
     } else {
-        if (Test-Path -Path \$target) {
+        if (Test-Path -LiteralPath \$target) {
             Write-Output "PULADO (já existe no destino): \$target"
         } else {
-            Move-Item -Path \$src -Destination \$target -ErrorAction Stop
+            Move-Item -LiteralPath \$src -Destination \$target -ErrorAction Stop
             Write-Output "MOVIDO: \$src -> \$target"
         }
     }
@@ -339,7 +365,7 @@ try {
 }
 ''';
 
-      final res = await executeEncoded(psScript);
+      final res = await executeScriptFile(psScript);
       logBuffer.writeln(res.trim());
       logBuffer.writeln('----------------------------------------');
     }
@@ -379,6 +405,8 @@ try {
     logBuffer.writeln('Iniciando organização do diretório: $diretorioRaiz');
     logBuffer.writeln('Incluir Subpastas (Recursivo): $incluirSubpastas\n');
 
+    final escapedRoot = diretorioRaiz.replaceAll("'", "''");
+
     for (int i = 0; i < total; i++) {
       final entry = entries[i];
       final nomeSubpasta = entry.key;
@@ -392,17 +420,19 @@ try {
 
       final extensoesPs = extensoes.map((e) => "'$e'").join(', ');
       final recurseFlag = incluirSubpastas ? '-Recurse' : '';
+      final escapedSubfolder = nomeSubpasta.replaceAll("'", "''");
 
       final psScript = '''
-\$rootDir = "$diretorioRaiz"
-\$targetDir = Join-Path \$rootDir "$nomeSubpasta"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+\$rootDir = '$escapedRoot'
+\$targetDir = Join-Path \$rootDir '$escapedSubfolder'
 \$exts = @($extensoesPs)
 
-if (-not (Test-Path -Path \$targetDir)) {
+if (-not (Test-Path -LiteralPath \$targetDir)) {
     New-Item -ItemType Directory -Force -Path \$targetDir | Out-Null
 }
 
-\$files = Get-ChildItem -Path \$rootDir $recurseFlag -File -ErrorAction SilentlyContinue | Where-Object {
+\$files = Get-ChildItem -LiteralPath \$rootDir $recurseFlag -File -ErrorAction SilentlyContinue | Where-Object {
     \$_.DirectoryName -ne \$targetDir -and \$exts -contains \$_.Extension.ToLower()
 }
 
@@ -410,7 +440,7 @@ if (-not (Test-Path -Path \$targetDir)) {
 foreach (\$f in \$files) {
     try {
         \$dest = Join-Path \$targetDir \$f.Name
-        if (-not (Test-Path -Path \$dest)) {
+        if (-not (Test-Path -LiteralPath \$dest)) {
             Move-Item -LiteralPath \$f.FullName -Destination \$dest -Force -ErrorAction Stop
             \$count++
         }
@@ -422,7 +452,7 @@ foreach (\$f in \$files) {
 Write-Output "Organizados \$count arquivo(s) na pasta '$nomeSubpasta'."
 ''';
 
-      final res = await executeEncoded(psScript);
+      final res = await executeScriptFile(psScript);
       logBuffer.writeln(res.trim());
       logBuffer.writeln('----------------------------------------');
     }
@@ -464,14 +494,18 @@ Write-Output "Organizados \$count arquivo(s) na pasta '$nomeSubpasta'."
       });
 
       final targetDir = p.join(pastaDestinoBase, targetSubfolder);
+      final escapedSrc = src.replaceAll("'", "''");
+      final escapedTargetDir = targetDir.replaceAll("'", "''");
+      final escapedFileName = fileName.replaceAll("'", "''");
 
       final psScript = '''
-\$src = "$src"
-\$targetDir = "$targetDir"
-\$fileName = "$fileName"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+\$src = '$escapedSrc'
+\$targetDir = '$escapedTargetDir'
+\$fileName = '$escapedFileName'
 \$dest = Join-Path \$targetDir \$fileName
 
-if (-not (Test-Path -Path \$targetDir)) {
+if (-not (Test-Path -LiteralPath \$targetDir)) {
     New-Item -ItemType Directory -Force -Path \$targetDir | Out-Null
 }
 
@@ -483,7 +517,7 @@ try {
 }
 ''';
 
-      final res = await executeEncoded(psScript);
+      final res = await executeScriptFile(psScript);
       logBuffer.writeln(res.trim());
     }
 
@@ -492,12 +526,20 @@ try {
   }
 
   Future<List<Map<String, dynamic>>> detectarDuplicados({
-    required String diretorioRaiz,
+    required List<String> searchPaths,
     String categoriaFiltro = 'todos',
+    bool includeSubfolders = true,
   }) async {
+    if (searchPaths.isEmpty) return [];
+
+    final pathsPs = searchPaths
+        .map((path) => "'${path.replaceAll("'", "''")}'")
+        .join(', ');
+    final recurseFlag = includeSubfolders ? '-Recurse' : '';
+
     final psScript = '''
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
-\$rootDir = "$diretorioRaiz"
+\$paths = @($pathsPs)
 \$cat = "$categoriaFiltro"
 
 \$extMap = @{
@@ -508,11 +550,16 @@ try {
     'instaladores'= @('.exe', '.msi', '.iso')
 }
 
-\$allFiles = Get-ChildItem -Path \$rootDir -Recurse -File -ErrorAction SilentlyContinue | Where-Object {
-    if (\$cat -ne "todos" -and \$extMap.ContainsKey(\$cat)) {
-        \$extMap[\$cat] -contains \$_.Extension.ToLower()
-    } else {
-        \$true
+\$allFiles = @()
+foreach (\$p in \$paths) {
+    if (Test-Path -LiteralPath \$p) {
+        \$allFiles += Get-ChildItem -LiteralPath \$p $recurseFlag -File -ErrorAction SilentlyContinue | Where-Object {
+            if (\$cat -ne "todos" -and \$extMap.ContainsKey(\$cat)) {
+                \$extMap[\$cat] -contains \$_.Extension.ToLower()
+            } else {
+                \$true
+            }
+        }
     }
 }
 
@@ -538,7 +585,7 @@ foreach (\$group in \$sizeGroups) {
 }
 
 function Get-MetadataObj(\$f) {
-    \$verInfo = (Get-Item \$f.FullName).VersionInfo
+    \$verInfo = (Get-Item -LiteralPath \$f.FullName).VersionInfo
     return @{
         caminho = \$f.FullName
         nome = \$f.Name
@@ -595,58 +642,120 @@ foreach (\$group in \$nameGroups) {
 ConvertTo-Json -InputObject \$resultList -Depth 4 -Compress
 ''';
 
-    final bytes = <int>[];
-    for (final charCode in psScript.codeUnits) {
-      bytes.add(charCode & 0xFF);
-      bytes.add((charCode >> 8) & 0xFF);
-    }
-    final encoded = base64.encode(bytes);
+    final output = await executeScriptFile(psScript);
+    final raw = output.trim();
+    if (raw.isEmpty) return [];
 
     try {
-      final process = await Process.start(
-        'powershell.exe',
-        [
-          '-NoProfile',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-EncodedCommand',
-          encoded,
-        ],
-        runInShell: true,
-      );
-
-      _processoAtivo = process;
-
-      final List<int> stdoutBytes = [];
-      final List<int> stderrBytes = [];
-
-      process.stdout.listen((data) => stdoutBytes.addAll(data));
-      process.stderr.listen((data) => stderrBytes.addAll(data));
-
-      final exitCode = await process.exitCode;
-      final stdout = utf8.decode(stdoutBytes, allowMalformed: true);
-      final stderr = utf8.decode(stderrBytes, allowMalformed: true);
-
-      if (exitCode == 0) {
-        final raw = stdout.trim();
-        if (raw.isEmpty) return [];
-
-        final decoded = jsonDecode(raw);
-        if (decoded is List) {
-          return List<Map<String, dynamic>>.from(
-            decoded.map((item) => Map<String, dynamic>.from(item)),
-          );
-        } else if (decoded is Map) {
-          return [Map<String, dynamic>.from(decoded)];
-        }
-      } else {
-        throw Exception('Processo interrompido ou encerrado (exitCode $exitCode): $stderr');
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return List<Map<String, dynamic>>.from(
+          decoded.map((item) => Map<String, dynamic>.from(item)),
+        );
+      } else if (decoded is Map) {
+        return [Map<String, dynamic>.from(decoded)];
       }
-    } catch (e) {
-      rethrow;
-    } finally {
-      _processoAtivo = null;
+    } catch (_) {}
+
+    return [];
+  }
+
+  Future<List<FoundFileInfo>> searchFiles({
+    required List<String> searchPaths,
+    required bool includeSubfolders,
+    required String categoriaFiltro,
+    required String nameQuery,
+    required String sizeFilter,
+  }) async {
+    if (searchPaths.isEmpty) return [];
+
+    final pathsPs = searchPaths
+        .map((path) => "'${path.replaceAll("'", "''")}'")
+        .join(', ');
+    final recurseFlag = includeSubfolders ? '-Recurse' : '';
+
+    final psScript = '''
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+\$paths = @($pathsPs)
+\$cat = "$categoriaFiltro"
+\$query = "$nameQuery"
+\$sizeF = "$sizeFilter"
+
+\$extMap = @{
+    'imagens'     = @('.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif')
+    'videos'      = @('.mp4', '.mkv', '.avi', '.mov', '.wmv')
+    'audios'      = @('.mp3', '.wav', '.flac', '.aac', '.m4a')
+    'textos'      = @('.txt', '.log', '.json', '.csv', '.md', '.xml', '.pdf', '.docx')
+    'instaladores'= @('.exe', '.msi', '.iso')
+}
+
+\$files = @()
+foreach (\$p in \$paths) {
+    if (Test-Path -LiteralPath \$p) {
+        \$files += Get-ChildItem -LiteralPath \$p $recurseFlag -File -ErrorAction SilentlyContinue
     }
+}
+
+\$filtered = \$files | Where-Object {
+    \$item = \$_
+    \$passCat = \$true
+    if (\$cat -ne "todos" -and \$extMap.ContainsKey(\$cat)) {
+        \$passCat = \$extMap[\$cat] -contains \$item.Extension.ToLower()
+    }
+
+    \$passName = \$true
+    if (\$query -and \$query.Trim() -ne "") {
+        \$passName = \$item.Name -like "*\$query*"
+    }
+
+    \$passSize = \$true
+    \$len = \$item.Length
+    if (\$sizeF -eq "< 10 MB") {
+        \$passSize = \$len -lt 10MB
+    } elseif (\$sizeF -eq "10-100 MB") {
+        \$passSize = (\$len -ge 10MB) -and (\$len -le 100MB)
+    } elseif (\$sizeF -eq "100 MB - 1 GB") {
+        \$passSize = (\$len -gt 100MB) -and (\$len -le 1GB)
+    } elseif (\$sizeF -eq "> 1 GB") {
+        \$passSize = \$len -gt 1GB
+    }
+
+    \$passCat -and \$passName -and \$passSize
+}
+
+if (\$null -eq \$filtered -or \$filtered.Count -eq 0) {
+    Write-Output "[]"
+    exit
+}
+
+\$resultList = @()
+foreach (\$f in \$filtered) {
+    \$resultList += @{
+        nome = \$f.Name
+        caminho = \$f.FullName
+        tamanho = \$f.Length
+        extensao = \$f.Extension
+        modificado = \$f.LastWriteTime.ToString("o")
+    }
+}
+
+ConvertTo-Json -InputObject \$resultList -Depth 3 -Compress
+''';
+
+    final output = await executeScriptFile(psScript);
+    final raw = output.trim();
+    if (raw.isEmpty) return [];
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return List<FoundFileInfo>.from(
+          decoded.map((item) => FoundFileInfo.fromMap(Map<String, dynamic>.from(item))),
+        );
+      } else if (decoded is Map) {
+        return [FoundFileInfo.fromMap(Map<String, dynamic>.from(decoded))];
+      }
+    } catch (_) {}
 
     return [];
   }
@@ -660,8 +769,9 @@ ConvertTo-Json -InputObject \$resultList -Depth 4 -Compress
       }
       return false;
     } catch (e) {
-      final script = 'Remove-Item -LiteralPath "$caminho" -Force -ErrorAction Stop';
-      final res = await executeEncoded(script);
+      final escaped = caminho.replaceAll("'", "''");
+      final script = "Remove-Item -LiteralPath '$escaped' -Force -ErrorAction Stop";
+      final res = await executeScriptFile(script);
       return !res.startsWith('Erro');
     }
   }
@@ -677,8 +787,10 @@ ConvertTo-Json -InputObject \$resultList -Depth 4 -Compress
       }
       return false;
     } catch (e) {
-      final script = 'Rename-Item -LiteralPath "$caminhoOriginal" -NewName "$novoNome" -Force -ErrorAction Stop';
-      final res = await executeEncoded(script);
+      final escapedSrc = caminhoOriginal.replaceAll("'", "''");
+      final escapedNew = novoNome.replaceAll("'", "''");
+      final script = "Rename-Item -LiteralPath '$escapedSrc' -NewName '$escapedNew' -Force -ErrorAction Stop";
+      final res = await executeScriptFile(script);
       return !res.startsWith('Erro');
     }
   }

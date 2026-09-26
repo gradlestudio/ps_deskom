@@ -1,16 +1,181 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:window_manager/window_manager.dart';
 import 'providers/commander_provider.dart';
 import 'widgets/about_dialog_widget.dart';
 import 'widgets/audio_preview_card.dart';
 import 'widgets/update_dialog.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await windowManager.ensureInitialized();
+
+  WindowOptions windowOptions = const WindowOptions(
+    size: Size(1280, 800),
+    minimumSize: Size(1024, 700),
+    center: true,
+    backgroundColor: Colors.transparent,
+    skipTaskbar: false,
+    title: 'PS DesKom',
+  );
+
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.maximize();
+    await windowManager.show();
+    await windowManager.focus();
+  });
+
   runApp(const ProviderScope(child: PSDesKomApp()));
+}
+
+class ImageZoomDialog extends StatefulWidget {
+  final List<String> imagePaths;
+  final int initialIndex;
+
+  const ImageZoomDialog({
+    super.key,
+    required this.imagePaths,
+    this.initialIndex = 0,
+  });
+
+  @override
+  State<ImageZoomDialog> createState() => _ImageZoomDialogState();
+}
+
+class _ImageZoomDialogState extends State<ImageZoomDialog> {
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
+
+  void _proxima() {
+    if (_currentIndex < widget.imagePaths.length - 1) {
+      setState(() => _currentIndex++);
+    }
+  }
+
+  void _anterior() {
+    if (_currentIndex > 0) {
+      setState(() => _currentIndex--);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.imagePaths.isEmpty) {
+      return const Dialog(child: SizedBox.shrink());
+    }
+
+    final currentPath = widget.imagePaths[_currentIndex];
+    final fileName = p.basename(currentPath);
+
+    return Dialog(
+      backgroundColor: Colors.black.withValues(alpha: 0.92),
+      insetPadding: const EdgeInsets.all(20),
+      child: Stack(
+        children: [
+          // Área Central de Imagem com Zoom e Pan
+          Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.file(
+                File(currentPath),
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Icon(Icons.broken_image, size: 64, color: Colors.white54),
+                ),
+              ),
+            ),
+          ),
+
+          // Botão Fechar
+          Positioned(
+            top: 16,
+            right: 16,
+            child: CircleAvatar(
+              backgroundColor: Colors.black54,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+                tooltip: 'Fechar',
+              ),
+            ),
+          ),
+
+          // Seta de Navegação Esquerda
+          if (widget.imagePaths.length > 1 && _currentIndex > 0)
+            Positioned(
+              left: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: CircleAvatar(
+                  backgroundColor: Colors.black54,
+                  radius: 24,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                    onPressed: _anterior,
+                    tooltip: 'Imagem Anterior',
+                  ),
+                ),
+              ),
+            ),
+
+          // Seta de Navegação Direita
+          if (widget.imagePaths.length > 1 && _currentIndex < widget.imagePaths.length - 1)
+            Positioned(
+              right: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: CircleAvatar(
+                  backgroundColor: Colors.black54,
+                  radius: 24,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
+                    onPressed: _proxima,
+                    tooltip: 'Próxima Imagem',
+                  ),
+                ),
+              ),
+            ),
+
+          // Barra Informativa Inferior
+          Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF3F3F46)),
+                ),
+                child: Text(
+                  '${_currentIndex + 1} / ${widget.imagePaths.length} — $fileName',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class PSDesKomApp extends StatelessWidget {
@@ -168,7 +333,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _selecionarDiretorioBusca() async {
     String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
     if (selectedDirectory != null) {
-      ref.read(commanderProvider.notifier).setDiretorioBusca(selectedDirectory);
+      ref.read(commanderProvider.notifier).adicionarSearchPath(selectedDirectory);
     }
   }
 
@@ -531,10 +696,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             )
                           : ElevatedButton.icon(
-                              onPressed: (state.diretorioBusca != null &&
-                                      state.diretorioBusca!.isNotEmpty &&
-                                      !state.isLoading)
-                                  ? () => notifier.dispararVarreduraDuplicados()
+                              onPressed: (state.searchPaths.isNotEmpty && !state.isLoading)
+                                  ? () {
+                                      if (state.searchMode == SearchMode.duplicates) {
+                                        notifier.dispararVarreduraDuplicados();
+                                      } else {
+                                        notifier.dispararBuscaArquivos();
+                                      }
+                                    }
                                   : null,
                               icon: state.isLoading
                                   ? const SizedBox(
@@ -545,10 +714,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Icon(Icons.search_outlined, size: 20),
-                              label: const Text(
-                                'ESCANEAR DUPLICADOS',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                  : Icon(
+                                      state.searchMode == SearchMode.duplicates
+                                          ? Icons.search_outlined
+                                          : Icons.find_in_page_outlined,
+                                      size: 20),
+                              label: Text(
+                                state.searchMode == SearchMode.duplicates
+                                    ? 'ESCANEAR DUPLICADOS'
+                                    : 'LOCALIZAR ARQUIVOS',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF0078D4),
@@ -1730,10 +1905,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     CommanderState state,
     CommanderNotifier notifier,
   ) {
+    final isDuplicatesMode = state.searchMode == SearchMode.duplicates;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Seletor de Pasta Raiz e Filtro por Categoria
+        // Seletor de Modo de Operação + Pastas + Filtros
         Card(
           elevation: 2,
           shape: RoundedRectangleBorder(
@@ -1742,82 +1919,176 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           child: Padding(
             padding: const EdgeInsets.all(12.0),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.search_outlined, color: Color(0xFF0078D4), size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'PASTA A SER ANALISADA:',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF888888)),
+                // Linha 1: Alternador de Modo e Seleção de Pastas
+                Row(
+                  children: [
+                    SegmentedButton<SearchMode>(
+                      segments: const [
+                        ButtonSegment(
+                          value: SearchMode.duplicates,
+                          label: Text('Duplicados (SHA-256)', style: TextStyle(fontSize: 12)),
+                          icon: Icon(Icons.copy_outlined, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: SearchMode.fileSearch,
+                          label: Text('Localizar Arquivos', style: TextStyle(fontSize: 12)),
+                          icon: Icon(Icons.search_outlined, size: 16),
+                        ),
+                      ],
+                      selected: {state.searchMode},
+                      onSelectionChanged: (set) {
+                        if (set.isNotEmpty) notifier.setSearchMode(set.first);
+                      },
+                      style: ButtonStyle(
+                        backgroundColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return const Color(0xFF0078D4);
+                          }
+                          return const Color(0xFF2D2D2D);
+                        }),
+                        foregroundColor: WidgetStateProperty.all(Colors.white),
                       ),
-                      const SizedBox(height: 2),
-                      SelectableText(
-                        state.diretorioBusca ??
-                            'Nenhum diretório selecionado. Clique em "Buscar Pasta".',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: state.diretorioBusca != null
-                              ? const Color(0xFF4EC9B0)
-                              : const Color(0xFF888888),
-                          fontFamily: 'Consolas',
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: _selecionarDiretorioBusca,
+                      icon: const Icon(Icons.add_location_alt_outlined, size: 16),
+                      label: const Text('+ Adicionar Pasta'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0078D4),
+                        side: const BorderSide(color: Color(0xFF0078D4)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                    ),
+                    if (state.searchPaths.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      TextButton.icon(
+                        onPressed: () => notifier.limparSearchPaths(),
+                        icon: const Icon(Icons.clear_all, size: 16),
+                        label: const Text('Limpar'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF888888),
                         ),
                       ),
                     ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
-                  onPressed: _selecionarDiretorioBusca,
-                  icon: const Icon(Icons.folder_open, size: 16),
-                  label: const Text('Buscar Pasta'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0078D4),
-                    side: const BorderSide(color: Color(0xFF0078D4)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 160,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: state.categoriaFiltroBusca,
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    const Spacer(),
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: state.includeSubfolders,
+                          activeColor: const Color(0xFF0078D4),
+                          onChanged: (val) {
+                            if (val != null) notifier.toggleIncludeSubfolders(val);
+                          },
+                        ),
+                        const Text(
+                          'Incluir subpastas (Recursivo)',
+                          style: TextStyle(fontSize: 12, color: Colors.white),
+                        ),
+                      ],
                     ),
-                    dropdownColor: const Color(0xFF2D2D2D),
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'todos',
-                          child: Text('Todos', style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(
-                          value: 'imagens',
-                          child: Text('Imagens', style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(
-                          value: 'videos',
-                          child: Text('Vídeos', style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(
-                          value: 'audios',
-                          child: Text('Áudios', style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(
-                          value: 'textos',
-                          child: Text('Texto/Docs', style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(
-                          value: 'instaladores',
-                          child: Text('Instaladores', style: TextStyle(fontSize: 12))),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) notifier.setCategoriaFiltro(val);
-                    },
+                  ],
+                ),
+
+                // Lista de Chips de Pastas Selecionadas
+                if (state.searchPaths.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: List.generate(state.searchPaths.length, (index) {
+                      final path = state.searchPaths[index];
+                      return Chip(
+                        backgroundColor: const Color(0xFF2D2D2D),
+                        side: const BorderSide(color: Color(0xFF3F3F46)),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        label: Text(
+                          path,
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF4EC9B0),
+                              fontFamily: 'Consolas'),
+                        ),
+                        deleteIcon: const Icon(Icons.close, size: 14, color: Colors.redAccent),
+                        onDeleted: () => notifier.removerSearchPath(index),
+                      );
+                    }),
                   ),
+                ],
+
+                const SizedBox(height: 8),
+
+                // Linha 2: Filtros de Busca Responsivos (Flex)
+                Row(
+                  children: [
+                    const Text(
+                      'Filtros:',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF888888)),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      flex: 2,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: state.categoriaFiltroBusca,
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                        ),
+                        dropdownColor: const Color(0xFF2D2D2D),
+                        items: const [
+                          DropdownMenuItem(value: 'todos', child: Text('Todas Mídias', style: TextStyle(fontSize: 11))),
+                          DropdownMenuItem(value: 'imagens', child: Text('Imagens', style: TextStyle(fontSize: 11))),
+                          DropdownMenuItem(value: 'videos', child: Text('Vídeos', style: TextStyle(fontSize: 11))),
+                          DropdownMenuItem(value: 'audios', child: Text('Áudios', style: TextStyle(fontSize: 11))),
+                          DropdownMenuItem(value: 'textos', child: Text('Texto/Docs', style: TextStyle(fontSize: 11))),
+                          DropdownMenuItem(value: 'instaladores', child: Text('Instaladores', style: TextStyle(fontSize: 11))),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) notifier.setCategoriaFiltro(val);
+                        },
+                      ),
+                    ),
+                    if (!isDuplicatesMode) ...[
+                      const SizedBox(width: 6),
+                      Expanded(
+                        flex: 4,
+                        child: TextField(
+                          onChanged: (v) => notifier.setSearchFileNameQuery(v),
+                          style: const TextStyle(fontSize: 12, color: Colors.white),
+                          decoration: const InputDecoration(
+                            hintText: 'Buscar por nome ou extensão (ex: .log)...',
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        flex: 2,
+                        child: DropdownButtonFormField<String>(
+                          initialValue: state.searchSizeFilter,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                          ),
+                          dropdownColor: const Color(0xFF2D2D2D),
+                          items: const [
+                            DropdownMenuItem(value: 'Todos', child: Text('Qualquer Tamanho', style: TextStyle(fontSize: 11))),
+                            DropdownMenuItem(value: '< 10 MB', child: Text('< 10 MB', style: TextStyle(fontSize: 11))),
+                            DropdownMenuItem(value: '10-100 MB', child: Text('10-100 MB', style: TextStyle(fontSize: 11))),
+                            DropdownMenuItem(value: '100 MB - 1 GB', child: Text('100 MB - 1 GB', style: TextStyle(fontSize: 11))),
+                            DropdownMenuItem(value: '> 1 GB', child: Text('> 1 GB', style: TextStyle(fontSize: 11))),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) notifier.setSearchSizeFilter(val);
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -1825,183 +2096,324 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 12),
 
-        // Painel Principal Dividido: Master - Detail
+        // Área Central de Resultados
         Expanded(
-          child: state.gruposConflito.isEmpty
-              ? Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    side: const BorderSide(color: Color(0xFF3F3F46)),
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.find_in_page_outlined,
-                            size: 48, color: Color(0xFF555555)),
-                        SizedBox(height: 12),
-                        Text(
-                          'Nenhum conflito ou arquivo duplicado detectado.',
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white),
+          child: isDuplicatesMode
+              ? _buildResultadosDuplicados(context, state, notifier)
+              : _buildResultadosBuscaArquivos(context, state, notifier),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResultadosBuscaArquivos(
+    BuildContext context,
+    CommanderState state,
+    CommanderNotifier notifier,
+  ) {
+    if (state.foundFiles.isEmpty) {
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+          side: const BorderSide(color: Color(0xFF3F3F46)),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.search_off_outlined, size: 48, color: Color(0xFF555555)),
+              SizedBox(height: 12),
+              Text(
+                'Nenhum arquivo localizado.',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Adicione uma ou mais pastas e clique em "LOCALIZAR ARQUIVOS".',
+                style: TextStyle(color: Color(0xFF888888), fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: const BorderSide(color: Color(0xFF3F3F46)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.list_alt, color: Color(0xFF0078D4), size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'ARQUIVOS LOCALIZADOS [${state.foundFiles.length}]',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.white),
+                ),
+              ],
+            ),
+            const Divider(color: Color(0xFF3F3F46), height: 16),
+            Expanded(
+              child: ListView.separated(
+                itemCount: state.foundFiles.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(color: Color(0xFF2D2D2D), height: 1),
+                itemBuilder: (context, index) {
+                  final file = state.foundFiles[index];
+                  final sizeKb = (file.sizeBytes / 1024).toStringAsFixed(1);
+
+                  return ListTile(
+                    dense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    leading: const Icon(Icons.insert_drive_file,
+                        color: Color(0xFF0078D4), size: 20),
+                    title: Text(
+                      file.name,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13),
+                    ),
+                    subtitle: Text(
+                      '${file.path} • $sizeKb KB',
+                      style: const TextStyle(
+                          color: Color(0xFF888888),
+                          fontSize: 11,
+                          fontFamily: 'Consolas'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.open_in_new,
+                              size: 18, color: Color(0xFF0078D4)),
+                          tooltip: 'Abrir Arquivo',
+                          onPressed: () {
+                            Process.run('explorer.exe', [file.path]);
+                          },
                         ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Selecione uma pasta e clique em "ESCANEAR DUPLICADOS" na barra inferior.',
-                          style: TextStyle(color: Color(0xFF888888), fontSize: 12),
+                        IconButton(
+                          icon: const Icon(Icons.folder_open,
+                              size: 18, color: Color(0xFF4EC9B0)),
+                          tooltip: 'Abrir Localização',
+                          onPressed: () {
+                            Process.run('explorer.exe', ['/select,', file.path]);
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.copy,
+                              size: 18, color: Color(0xFFCCCCCC)),
+                          tooltip: 'Copiar Caminho',
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: file.path));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Caminho copiado!'),
+                                backgroundColor: Color(0xFF0078D4),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
-                  ),
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Coluna Esquerda: Lista de Conflitos
-                    SizedBox(
-                      width: 280,
-                      child: Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                          side: const BorderSide(color: Color(0xFF3F3F46)),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'GRUPOS DE CONFLITO [${state.gruposConflito.length}]',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFCCCCCC),
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                              const Divider(color: Color(0xFF3F3F46), height: 16),
-                              Expanded(
-                                child: ListView.separated(
-                                  itemCount: state.gruposConflito.length,
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(height: 6),
-                                  itemBuilder: (context, index) {
-                                    final grupo = state.gruposConflito[index];
-                                    final isSelected =
-                                        state.grupoConflitoSelecionado == index;
-                                    final isIdentical =
-                                        grupo['tipo'] == 'identical';
-                                    final arquivos =
-                                        grupo['arquivos'] as List? ?? [];
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                                    return InkWell(
-                                      onTap: () => notifier.selecionarGrupo(index),
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: isSelected
-                                              ? const Color(0xFF0078D4)
-                                                  .withValues(alpha: 0.2)
-                                              : const Color(0xFF2D2D2D),
-                                          borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(
-                                            color: isSelected
-                                                ? const Color(0xFF0078D4)
-                                                : const Color(0xFF3F3F46),
-                                            width: isSelected ? 1.5 : 1,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: isIdentical
-                                                        ? const Color(0xFF107C41)
-                                                        : const Color(0xFFD83B01),
-                                                    borderRadius:
-                                                        BorderRadius.circular(2),
-                                                  ),
-                                                  child: Text(
-                                                    isIdentical
-                                                        ? 'CONTEÚDO IDÊNTICO'
-                                                        : 'MESMO NOME',
-                                                    style: const TextStyle(
-                                                      fontSize: 9,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const Spacer(),
-                                                Text(
-                                                  '${arquivos.length} itens',
-                                                  style: const TextStyle(
-                                                      fontSize: 10,
-                                                      color: Color(0xFFCCCCCC)),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              arquivos.isNotEmpty
-                                                  ? arquivos.first['nome'] ?? ''
-                                                  : 'Grupo $index',
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
+  Widget _buildResultadosDuplicados(
+    BuildContext context,
+    CommanderState state,
+    CommanderNotifier notifier,
+  ) {
+    if (state.gruposConflito.isEmpty) {
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+          side: const BorderSide(color: Color(0xFF3F3F46)),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.find_in_page_outlined,
+                  size: 48, color: Color(0xFF555555)),
+              SizedBox(height: 12),
+              Text(
+                'Nenhum conflito ou arquivo duplicado detectado.',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Adicione uma ou mais pastas e clique em "ESCANEAR DUPLICADOS".',
+                style: TextStyle(color: Color(0xFF888888), fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Coluna Esquerda: Lista de Conflitos
+        SizedBox(
+          width: 280,
+          child: Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+              side: const BorderSide(color: Color(0xFF3F3F46)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'GRUPOS DE CONFLITO [${state.gruposConflito.length}]',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFCCCCCC),
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const Divider(color: Color(0xFF3F3F46), height: 16),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: state.gruposConflito.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 6),
+                      itemBuilder: (context, index) {
+                        final grupo = state.gruposConflito[index];
+                        final isSelected =
+                            state.grupoConflitoSelecionado == index;
+                        final isIdentical = grupo['tipo'] == 'identical';
+                        final arquivos = grupo['arquivos'] as List? ?? [];
+
+                        return InkWell(
+                          onTap: () => notifier.selecionarGrupo(index),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFF0078D4)
+                                      .withValues(alpha: 0.2)
+                                  : const Color(0xFF2D2D2D),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: isSelected
+                                    ? const Color(0xFF0078D4)
+                                    : const Color(0xFF3F3F46),
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isIdentical
+                                            ? const Color(0xFF107C41)
+                                            : const Color(0xFFD83B01),
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                      child: Text(
+                                        isIdentical
+                                            ? 'CONTEÚDO IDÊNTICO'
+                                            : 'MESMO NOME',
+                                        style: const TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
                                         ),
                                       ),
-                                    );
-                                  },
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '${arquivos.length} itens',
+                                      style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xFFCCCCCC)),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  arquivos.isNotEmpty
+                                      ? arquivos.first['nome'] ?? ''
+                                      : 'Grupo $index',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
-                    const SizedBox(width: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
 
-                    // Coluna Direita: Painel de Comparação Lado a Lado
-                    Expanded(
-                      child: Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                          side: const BorderSide(color: Color(0xFF3F3F46)),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(14.0),
-                          child: _buildPainelComparacao(
-                            context,
-                            state,
-                            notifier,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+        // Coluna Direita: Painel de Comparação Lado a Lado
+        Expanded(
+          child: Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+              side: const BorderSide(color: Color(0xFF3F3F46)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14.0),
+              child: _buildPainelComparacao(
+                context,
+                state,
+                notifier,
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -2020,6 +2432,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final grupo = state.gruposConflito[state.grupoConflitoSelecionado];
     final arquivos = List<Map<String, dynamic>>.from(grupo['arquivos'] ?? []);
     final isIdentical = grupo['tipo'] == 'identical';
+
+    final List<String> imagensDoGrupo = arquivos
+        .map((a) => a['caminho'] as String? ?? '')
+        .where((c) =>
+            c.isNotEmpty &&
+            File(c).existsSync() &&
+            ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif']
+                .contains(p.extension(c).toLowerCase()))
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2140,6 +2561,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             border: Border.all(color: const Color(0xFF3F3F46)),
                           ),
                           child: _buildPreviewPorTipo(
+                            context: context,
                             caminho: caminho,
                             ext: ext,
                             isImage: isImage,
@@ -2149,6 +2571,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             isExe: isExe,
                             fileExists: fileExists,
                             arq: arq,
+                            imagensDoGrupo: imagensDoGrupo,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -2249,6 +2672,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildPreviewPorTipo({
+    required BuildContext context,
     required String caminho,
     required String ext,
     required bool isImage,
@@ -2258,18 +2682,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required bool isExe,
     required bool fileExists,
     required Map<String, dynamic> arq,
+    required List<String> imagensDoGrupo,
   }) {
     if (isImage && fileExists) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: Image.file(
-          File(caminho),
-          height: 150,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Center(
-            child: Icon(Icons.broken_image, size: 40, color: Color(0xFF888888)),
+      final imgIndex = imagensDoGrupo.indexOf(caminho);
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Image.file(
+                File(caminho),
+                height: 150,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Icon(Icons.broken_image, size: 40, color: Color(0xFF888888)),
+                ),
+              ),
+            ),
           ),
-        ),
+          Positioned(
+            top: 6,
+            right: 6,
+            child: CircleAvatar(
+              radius: 15,
+              backgroundColor: Colors.black.withValues(alpha: 0.65),
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                iconSize: 18,
+                icon: const Icon(Icons.zoom_in, color: Colors.white),
+                tooltip: 'Ampliar Imagem',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => ImageZoomDialog(
+                      imagePaths: imagensDoGrupo.isNotEmpty ? imagensDoGrupo : [caminho],
+                      initialIndex: imgIndex >= 0 ? imgIndex : 0,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       );
     } else if (isText && fileExists) {
       return FutureBuilder<String>(
