@@ -1,0 +1,13 @@
+{
+  "versao_recente": "1.0.0",
+  "build": 20260901,
+  "download_url": "https://github.com/gradlestudio/ps_deskom/releases/latest",
+  "novidades": [
+    "Lançamento Oficial v1.0.0",
+    "Módulos nativos: Descompactar, Copiar, Mover, Organizar e Procurar",
+    "Detecção binária de duplicados via SHA-256",
+    "Pré-visualização integrada de áudios e vídeos",
+    "Ativação vitalícia com HWID"
+  ],
+  "urgente": false
+}
