@@ -56,9 +56,10 @@
 - [x] Implementação da auditoria de integridade por Hash SHA-256 nos Módulos Copiar e Mover: checkbox no Card 2 (DESTINO) de `lib/main.dart`, parâmetro `auditarSha256` no `CommanderState`/`CommanderNotifier` (`lib/providers/commander_provider.dart`), e cálculo comparativo de hash com registros `[SHA-256 OK]` ou alertas de erro crítico em `PowerShellService` (`lib/services/powershell_service.dart`).
 - [x] Configuração do suporte multi-máquina com duas Chaves Mestras segregadas no `LicenseService` (`lib/services/license_service.dart`): `GRADLE-STUDIO-DEV-2026-MASTER` (Plano: "Gradle Studio Dev") e `GRADLE-STUDIO-SERVER-2026-MASTER` (Plano: "Gradle Studio Server"), com persistência local vitalícia via SharedPreferences.
 - [x] Implementação de exclusão segura para a Lixeira do Windows (Recycle Bin via .NET/PowerShell) no Módulo 5 (Procurar) com feedback em tempo real no console.
+- [x] Correção de codificação de texto do contrato EULA (`eula.txt`) para UTF-8 limpo com suporte correto a caracteres acentuados em português.
 
 ## 5. Backlog Operacional (Próximos Marcos)
-- [x] Implementação de exclusão segura para a Lixeira do Windows (Recycle Bin via .NET/PowerShell) no Módulo 5 (Procurar).
+- [x] Correção de codificação UTF-8 no arquivo `eula.txt`.
 - [ ] Preparação dos metadados de build, versão e ícones do executável Windows.
 - [ ] Compilação de produção (`flutter build windows --release`) das edições do PS DesKom.
 - [ ] Estruturação do instalador modular do Windows (Inno Setup / MSI).

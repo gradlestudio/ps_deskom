@@ -1,29 +1,29 @@
-CONTRATO DE LICEN«A DE UTILIZADOR FINAL (EULA)
+CONTRATO DE LICEN√áA DE UTILIZADOR FINAL (EULA)
 Produto: PS DesKom
-Vers„o: 1.0.0
+Vers√£o: 1.0.0
 Publicador: Gradle Studio
 
 Leia atentamente este contrato antes de instalar ou utilizar o PS DesKom. Ao instalar, copiar ou utilizar este software, o utilizador concorda em ficar vinculado aos termos deste EULA.
 
-1. CONCESS√O DE LICEN«A
-A Gradle Studio concede-lhe uma licenÁa pessoal, intransferÌvel e n„o exclusiva para utilizar o PS DesKom. A licenÁa baseia-se num modelo vitalÌcio associado ‡ identificaÁ„o de hardware (HWID) do seu dispositivo, validada atravÈs do nosso serviÁo de licenciamento (Dual-Master Key).
+1. CONCESS√ÉO DE LICEN√áA
+A Gradle Studio concede-lhe uma licen√ßa pessoal, intransfer√≠vel e n√£o exclusiva para utilizar o PS DesKom. A licen√ßa baseia-se num modelo vital√≠cio associado √† identifica√ß√£o de hardware (HWID) do seu dispositivo, validada atrav√©s do nosso servi√ßo de licenciamento (Dual-Master Key).
 
 2. DIREITOS DE AUTOR E PROPRIEDADE
-Todos os direitos, tÌtulos e interesses relativos ao PS DesKom (incluindo, mas n„o se limitando a, cÛdigo-fonte, imagens, Ìcones e design) s„o propriedade exclusiva da Gradle Studio. Este software est· protegido por leis de direitos de autor e tratados internacionais.
+Todos os direitos, t√≠tulos e interesses relativos ao PS DesKom (incluindo, mas n√£o se limitando a, c√≥digo-fonte, imagens, √≠cones e design) s√£o propriedade exclusiva da Gradle Studio. Este software est√° protegido por leis de direitos de autor e tratados internacionais.
 
-3. RESTRI«’ES DE UTILIZA«√O
-… estritamente proibido:
+3. RESTRI√á√ïES DE UTILIZA√á√ÉO
+√â estritamente proibido:
 a) Modificar, traduzir, descompilar ou fazer engenharia reversa do software;
-b) Partilhar, vender, sublicenciar ou redistribuir a sua chave de licenÁa ou a aplicaÁ„o sem autorizaÁ„o prÈvia;
-c) Contornar ou tentar contornar os sistemas de validaÁ„o de licenÁa e auditoria de ficheiros (SHA-256).
+b) Partilhar, vender, sublicenciar ou redistribuir a sua chave de licen√ßa ou a aplica√ß√£o sem autoriza√ß√£o pr√©via;
+c) Contornar ou tentar contornar os sistemas de valida√ß√£o de licen√ßa e auditoria de ficheiros (SHA-256).
 
-4. ISEN«√O DE GARANTIAS
-O PS DesKom È fornecido "tal como est·" (as is), sem qualquer tipo de garantia expressa ou implÌcita. A Gradle Studio n„o garante que as funÁıes contidas no software satisfaÁam plenamente os seus requisitos especÌficos ou que a operaÁ„o do software seja ininterrupta ou livre de erros.
+4. ISEN√á√ÉO DE GARANTIAS
+O PS DesKom √© fornecido "tal como est√°" (as is), sem qualquer tipo de garantia expressa ou impl√≠cita. A Gradle Studio n√£o garante que as fun√ß√µes contidas no software satisfa√ßam plenamente os seus requisitos espec√≠ficos ou que a opera√ß√£o do software seja ininterrupta ou livre de erros.
 
-5. LIMITA«√O DE RESPONSABILIDADE
-Em nenhuma circunst‚ncia a Gradle Studio ser· respons·vel por quaisquer danos diretos, indiretos, incidentais ou consequenciais (incluindo perda de dados ou lucros) decorrentes da utilizaÁ„o ou incapacidade de utilizaÁ„o do software.
+5. LIMITA√á√ÉO DE RESPONSABILIDADE
+Em nenhuma circunst√¢ncia a Gradle Studio ser√° respons√°vel por quaisquer danos diretos, indiretos, incidentais ou consequenciais (incluindo perda de dados ou lucros) decorrentes da utiliza√ß√£o ou incapacidade de utiliza√ß√£o do software.
 
-6. ACEITA«√O
-Ao marcar a caixa de seleÁ„o e prosseguir com a instalaÁ„o, o utilizador reconhece que leu e compreendeu este contrato, aceitando a totalidade dos seus termos.
+6. ACEITA√á√ÉO
+Ao marcar a caixa de sele√ß√£o e prosseguir com a instala√ß√£o, o utilizador reconhece que leu e compreendeu este contrato, aceitando a totalidade dos seus termos.
 
 Copyright (c) 2026 Gradle Studio. Todos os direitos reservados.
