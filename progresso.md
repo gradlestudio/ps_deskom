@@ -51,8 +51,14 @@
 - [x] Refatoração da execução de scripts PowerShell em `PowerShellService` (`lib/services/powershell_service.dart`) para utilizar arquivos `.ps1` temporários com UTF-8 BOM, eliminando o erro de limite de tamanho de linha de comando da Win32 API (`Linha de comando muito longa / exitCode 1`) e garantindo suporte total a múltiplos caminhos longos de rede.
 - [x] Resolução de overflow na barra de filtros horizontais do Módulo 5 (`lib/main.dart`) via `Flexible`/`Expanded` responsivo e implementação do modal de galeria/zoom de imagens (`ImageZoomDialog`) com ícone de lupa, suporte a pinch-to-zoom (`InteractiveViewer`) e setas de navegação lateral entre arquivos do mesmo grupo.
 - [x] Consolidação da arquitetura comercial (Básica, Pro/Full, Dev) e limpeza completa de resquícios de testes legados no `progresso.md`.
+- [x] Exposição dos botões/ações de atalho do Google Drive Desktop na UI dos Cards 1 (ORIGEM) e Cards 2 (DESTINO) dos Módulos Copiar e Mover em `lib/main.dart` com métodos `adicionarOrigemGoogleDrive()` e `setDestinoGoogleDrive()` no `CommanderNotifier` (`lib/providers/commander_provider.dart`).
+- [x] Criação do componente `GoogleDriveDialog` (`lib/widgets/google_drive_dialog.dart`) com orientação de instalação e botão de download oficial, e integração da tratativa UX quando o Google Drive Desktop não for encontrado nos gatilhos dos Cards 1 e 2 em `lib/main.dart` e `CommanderNotifier`.
+- [x] Implementação da auditoria de integridade por Hash SHA-256 nos Módulos Copiar e Mover: checkbox no Card 2 (DESTINO) de `lib/main.dart`, parâmetro `auditarSha256` no `CommanderState`/`CommanderNotifier` (`lib/providers/commander_provider.dart`), e cálculo comparativo de hash com registros `[SHA-256 OK]` ou alertas de erro crítico em `PowerShellService` (`lib/services/powershell_service.dart`).
+- [x] Configuração do suporte multi-máquina com duas Chaves Mestras segregadas no `LicenseService` (`lib/services/license_service.dart`): `GRADLE-STUDIO-DEV-2026-MASTER` (Plano: "Gradle Studio Dev") e `GRADLE-STUDIO-SERVER-2026-MASTER` (Plano: "Gradle Studio Server"), com persistência local vitalícia via SharedPreferences.
+- [x] Implementação de exclusão segura para a Lixeira do Windows (Recycle Bin via .NET/PowerShell) no Módulo 5 (Procurar) com feedback em tempo real no console.
 
 ## 5. Backlog Operacional (Próximos Marcos)
+- [x] Implementação de exclusão segura para a Lixeira do Windows (Recycle Bin via .NET/PowerShell) no Módulo 5 (Procurar).
 - [ ] Preparação dos metadados de build, versão e ícones do executável Windows.
 - [ ] Compilação de produção (`flutter build windows --release`) das edições do PS DesKom.
 - [ ] Estruturação do instalador modular do Windows (Inno Setup / MSI).

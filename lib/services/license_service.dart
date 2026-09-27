@@ -4,7 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'powershell_service.dart';
 
 class LicenseService {
-  static const String masterKey = 'GRADLE-STUDIO-DEV-2026-MASTER';
+  static const String masterKeyDev = 'GRADLE-STUDIO-DEV-2026-MASTER';
+  static const String masterKeyServer = 'GRADLE-STUDIO-SERVER-2026-MASTER';
+  static const String masterKey = masterKeyDev;
   static const String secretSalt = 'GRADLE-STUDIO-2026-SECRET';
 
   final PowerShellService _powerShellService;
@@ -52,20 +54,46 @@ Write-Output \$uuid
       String chaveInput, String hwid) async {
     final chave = chaveInput.trim().toUpperCase();
 
-    if (chave == masterKey) {
-      const tipo = 'Licença Desenvolvedor Vitalícia';
+    if (chave == masterKeyDev) {
+      const tipo = 'Gradle Studio Dev';
       await _salvarNoPrefs(chave, tipo);
-      return {'ativado': true, 'tipo': tipo, 'isDev': true, 'mensagem': 'Licença Mestra de Desenvolvedor Ativada!'};
+      return {
+        'ativado': true,
+        'tipo': tipo,
+        'isDev': true,
+        'mensagem': 'Licença Mestra "Gradle Studio Dev" Ativada com Sucesso!'
+      };
+    }
+
+    if (chave == masterKeyServer) {
+      const tipo = 'Gradle Studio Server';
+      await _salvarNoPrefs(chave, tipo);
+      return {
+        'ativado': true,
+        'tipo': tipo,
+        'isDev': true,
+        'mensagem': 'Licença Mestra "Gradle Studio Server" Ativada com Sucesso!'
+      };
     }
 
     final chaveValidaCliente = gerarChaveEsperada(hwid);
     if (chave == chaveValidaCliente) {
       const tipo = 'Licença Comercial';
       await _salvarNoPrefs(chave, tipo);
-      return {'ativado': true, 'tipo': tipo, 'isDev': false, 'mensagem': 'Licença Comercial Ativada com Sucesso!'};
+      return {
+        'ativado': true,
+        'tipo': tipo,
+        'isDev': false,
+        'mensagem': 'Licença Comercial Ativada com Sucesso!'
+      };
     }
 
-    return {'ativado': false, 'tipo': 'Não Ativado', 'isDev': false, 'mensagem': 'Chave de Licença Inválida.'};
+    return {
+      'ativado': false,
+      'tipo': 'Não Ativado',
+      'isDev': false,
+      'mensagem': 'Chave de Licença Inválida.'
+    };
   }
 
   Future<Map<String, dynamic>> carregarStatusLicenca(String hwid) async {
@@ -76,8 +104,12 @@ Write-Output \$uuid
       return {'ativado': false, 'tipo': 'Não Ativado', 'isDev': false};
     }
 
-    if (chaveSalva == masterKey) {
-      return {'ativado': true, 'tipo': 'Licença Desenvolvedor Vitalícia', 'isDev': true};
+    if (chaveSalva == masterKeyDev) {
+      return {'ativado': true, 'tipo': 'Gradle Studio Dev', 'isDev': true};
+    }
+
+    if (chaveSalva == masterKeyServer) {
+      return {'ativado': true, 'tipo': 'Gradle Studio Server', 'isDev': true};
     }
 
     if (chaveSalva == gerarChaveEsperada(hwid)) {

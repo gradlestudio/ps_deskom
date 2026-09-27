@@ -195,6 +195,7 @@ Write-Output "Concluído: \$src -> \$dest"
     required String diretorioDestino,
     required String regraColisao, // 'substituir', 'pular', 'manter'
     bool organizarNoDestino = false,
+    bool auditarSha256 = false,
     void Function(int processados, int total, String itemAtual)? onProgresso,
   }) async {
     final StringBuffer logBuffer = StringBuffer();
@@ -203,7 +204,8 @@ Write-Output "Concluído: \$src -> \$dest"
     logBuffer.writeln('Iniciando cópia em lote de $total item(ns)...');
     logBuffer.writeln('Diretório Destino: $diretorioDestino');
     logBuffer.writeln('Regra de Colisão: $regraColisao');
-    logBuffer.writeln('Organizar no Destino: $organizarNoDestino\n');
+    logBuffer.writeln('Organizar no Destino: $organizarNoDestino');
+    logBuffer.writeln('Auditoria SHA-256: $auditarSha256\n');
 
     for (int i = 0; i < total; i++) {
       final srcPath = itensOrigem[i];
@@ -225,6 +227,7 @@ Write-Output "Concluído: \$src -> \$dest"
 \$destDir = '$escapedDest'
 \$name = '$escapedName'
 \$target = Join-Path \$destDir \$name
+\$auditar = "$auditarSha256"
 
 if (-not (Test-Path -LiteralPath \$destDir)) {
     New-Item -ItemType Directory -Force -Path \$destDir | Out-Null
@@ -235,6 +238,20 @@ if (Test-Path -LiteralPath \$target) {
 } else {
     Copy-Item -LiteralPath \$src -Destination \$target -Recurse -Force
     Write-Output "COPIADO: \$src -> \$target"
+
+    if (\$auditar -eq "true" -and (Test-Path -LiteralPath \$target -PathType Leaf)) {
+        try {
+            \$hSrc = (Get-FileHash -LiteralPath \$src -Algorithm SHA256 -ErrorAction Stop).Hash
+            \$hDest = (Get-FileHash -LiteralPath \$target -Algorithm SHA256 -ErrorAction Stop).Hash
+            if (\$hSrc -eq \$hDest) {
+                Write-Output "[SHA-256 OK] \$name (Hash correspondente: \$hSrc)"
+            } else {
+                Write-Output "[ERRO CRÍTICO SHA-256] Divergência de integridade detectada em '\$name'! Origem: \$hSrc | Destino: \$hDest"
+            }
+        } catch {
+            Write-Output "[AUDITORIA SHA-256] Aviso: Não foi possível calcular hash para o item."
+        }
+    }
 }
 ''';
       } else if (regraColisao == 'manter') {
@@ -244,6 +261,7 @@ if (Test-Path -LiteralPath \$target) {
 \$destDir = '$escapedDest'
 \$name = '$escapedName'
 \$target = Join-Path \$destDir \$name
+\$auditar = "$auditarSha256"
 
 if (-not (Test-Path -LiteralPath \$destDir)) {
     New-Item -ItemType Directory -Force -Path \$destDir | Out-Null
@@ -262,6 +280,20 @@ if (Test-Path -LiteralPath \$target) {
 
 Copy-Item -LiteralPath \$src -Destination \$target -Recurse -Force
 Write-Output "COPIADO (CÓPIA): \$src -> \$target"
+
+if (\$auditar -eq "true" -and (Test-Path -LiteralPath \$target -PathType Leaf)) {
+    try {
+        \$hSrc = (Get-FileHash -LiteralPath \$src -Algorithm SHA256 -ErrorAction Stop).Hash
+        \$hDest = (Get-FileHash -LiteralPath \$target -Algorithm SHA256 -ErrorAction Stop).Hash
+        if (\$hSrc -eq \$hDest) {
+            Write-Output "[SHA-256 OK] \$name (Hash correspondente: \$hSrc)"
+        } else {
+            Write-Output "[ERRO CRÍTICO SHA-256] Divergência de integridade detectada em '\$name'! Origem: \$hSrc | Destino: \$hDest"
+        }
+    } catch {
+        Write-Output "[AUDITORIA SHA-256] Aviso: Não foi possível calcular hash para o item."
+    }
+}
 ''';
       } else {
         psScript = '''
@@ -270,6 +302,7 @@ Write-Output "COPIADO (CÓPIA): \$src -> \$target"
 \$destDir = '$escapedDest'
 \$name = '$escapedName'
 \$target = Join-Path \$destDir \$name
+\$auditar = "$auditarSha256"
 
 if (-not (Test-Path -LiteralPath \$destDir)) {
     New-Item -ItemType Directory -Force -Path \$destDir | Out-Null
@@ -277,6 +310,20 @@ if (-not (Test-Path -LiteralPath \$destDir)) {
 
 Copy-Item -LiteralPath \$src -Destination \$target -Recurse -Force
 Write-Output "COPIADO (SUBSTITUÍDO): \$src -> \$target"
+
+if (\$auditar -eq "true" -and (Test-Path -LiteralPath \$target -PathType Leaf)) {
+    try {
+        \$hSrc = (Get-FileHash -LiteralPath \$src -Algorithm SHA256 -ErrorAction Stop).Hash
+        \$hDest = (Get-FileHash -LiteralPath \$target -Algorithm SHA256 -ErrorAction Stop).Hash
+        if (\$hSrc -eq \$hDest) {
+            Write-Output "[SHA-256 OK] \$name (Hash correspondente: \$hSrc)"
+        } else {
+            Write-Output "[ERRO CRÍTICO SHA-256] Divergência de integridade detectada em '\$name'! Origem: \$hSrc | Destino: \$hDest"
+        }
+    } catch {
+        Write-Output "[AUDITORIA SHA-256] Aviso: Não foi possível calcular hash para o item."
+    }
+}
 ''';
       }
 
@@ -312,6 +359,7 @@ Write-Output "COPIADO (SUBSTITUÍDO): \$src -> \$target"
     required String diretorioDestino,
     required bool sobrescreverExistentes,
     bool organizarNoDestino = false,
+    bool auditarSha256 = false,
     void Function(int processados, int total, String itemAtual)? onProgresso,
   }) async {
     final StringBuffer logBuffer = StringBuffer();
@@ -320,7 +368,8 @@ Write-Output "COPIADO (SUBSTITUÍDO): \$src -> \$target"
     logBuffer.writeln('Iniciando movimentação em lote de $total item(ns)...');
     logBuffer.writeln('Diretório Destino: $diretorioDestino');
     logBuffer.writeln('Sobrescrever Existentes: $sobrescreverExistentes');
-    logBuffer.writeln('Organizar no Destino: $organizarNoDestino\n');
+    logBuffer.writeln('Organizar no Destino: $organizarNoDestino');
+    logBuffer.writeln('Auditoria SHA-256: $auditarSha256\n');
 
     for (int i = 0; i < total; i++) {
       final srcPath = itensOrigem[i];
@@ -340,12 +389,19 @@ Write-Output "COPIADO (SUBSTITUÍDO): \$src -> \$target"
 \$destDir = '$escapedDest'
 \$name = '$escapedName'
 \$target = Join-Path \$destDir \$name
+\$auditar = "$auditarSha256"
 
 if (-not (Test-Path -LiteralPath \$destDir)) {
     New-Item -ItemType Directory -Force -Path \$destDir | Out-Null
 }
 
 try {
+    \$isLeaf = Test-Path -LiteralPath \$src -PathType Leaf
+    \$hSrc = ""
+    if (\$auditar -eq "true" -and \$isLeaf) {
+        \$hSrc = (Get-FileHash -LiteralPath \$src -Algorithm SHA256 -ErrorAction Stop).Hash
+    }
+
     if ("$sobrescreverExistentes" -eq "true") {
         if (Test-Path -LiteralPath \$target) {
             Remove-Item -LiteralPath \$target -Recurse -Force -ErrorAction Stop
@@ -358,6 +414,15 @@ try {
         } else {
             Move-Item -LiteralPath \$src -Destination \$target -ErrorAction Stop
             Write-Output "MOVIDO: \$src -> \$target"
+        }
+    }
+
+    if (\$auditar -eq "true" -and \$isLeaf -and (Test-Path -LiteralPath \$target -PathType Leaf)) {
+        \$hDest = (Get-FileHash -LiteralPath \$target -Algorithm SHA256 -ErrorAction Stop).Hash
+        if (\$hSrc -eq \$hDest) {
+            Write-Output "[SHA-256 OK] \$name (Hash correspondente: \$hSrc)"
+        } else {
+            Write-Output "[ERRO CRÍTICO SHA-256] Divergência de integridade detectada ao mover '\$name'! Origem: \$hSrc | Destino: \$hDest"
         }
     }
 } catch {
@@ -760,20 +825,43 @@ ConvertTo-Json -InputObject \$resultList -Depth 3 -Compress
     return [];
   }
 
-  Future<bool> apagarArquivo(String caminho) async {
-    try {
-      final file = File(caminho);
-      if (await file.exists()) {
-        await file.delete();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      final escaped = caminho.replaceAll("'", "''");
-      final script = "Remove-Item -LiteralPath '$escaped' -Force -ErrorAction Stop";
-      final res = await executeScriptFile(script);
-      return !res.startsWith('Erro');
+  Future<bool> enviarParaLixeira(List<String> paths) async {
+    if (paths.isEmpty) return false;
+    final escapedPaths =
+        paths.map((p) => "'${p.replaceAll("'", "''")}'").join(', ');
+
+    final psScript = '''
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+Add-Type -AssemblyName Microsoft.VisualBasic;
+\$targets = @($escapedPaths);
+foreach (\$file in \$targets) {
+    if (Test-Path -LiteralPath \$file) {
+        try {
+            [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(
+                \$file,
+                [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs,
+                [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin
+            );
+            Write-Output "[INFO] Arquivo movido para a Lixeira do Windows: \$file";
+        } catch {
+            Write-Output "[ERRO] Falha ao enviar para a Lixeira: \$file (\$_)";
+        }
+    } else {
+        Write-Output "[AVISO] Arquivo não encontrado: \$file";
     }
+}
+''';
+
+    try {
+      final res = await executeScriptFile(psScript);
+      return !res.contains('[ERRO]');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> apagarArquivo(String caminho) async {
+    return await enviarParaLixeira([caminho]);
   }
 
   Future<bool> renomearArquivo(String caminhoOriginal, String novoNome) async {

@@ -81,8 +81,9 @@ class CommanderState {
   final int grupoConflitoSelecionado;
   final List<FoundFileInfo> foundFiles;
 
-  // Recursos Globais de Automação
+  // Recursos Globais de Automação & Auditoria
   final bool organizarAposTransferir;
+  final bool auditarSha256;
   final String? caminhoGoogleDriveDetectado;
 
   // Estado de Licença
@@ -143,6 +144,7 @@ class CommanderState {
     this.grupoConflitoSelecionado = 0,
     this.foundFiles = const [],
     this.organizarAposTransferir = false,
+    this.auditarSha256 = false,
     this.caminhoGoogleDriveDetectado,
     this.hwidAtual = '',
     this.softwareAtivado = false,
@@ -189,6 +191,7 @@ class CommanderState {
     int? grupoConflitoSelecionado,
     List<FoundFileInfo>? foundFiles,
     bool? organizarAposTransferir,
+    bool? auditarSha256,
     String? caminhoGoogleDriveDetectado,
     String? hwidAtual,
     bool? softwareAtivado,
@@ -237,6 +240,7 @@ class CommanderState {
       foundFiles: foundFiles ?? this.foundFiles,
       organizarAposTransferir:
           organizarAposTransferir ?? this.organizarAposTransferir,
+      auditarSha256: auditarSha256 ?? this.auditarSha256,
       caminhoGoogleDriveDetectado:
           caminhoGoogleDriveDetectado ?? this.caminhoGoogleDriveDetectado,
       hwidAtual: hwidAtual ?? this.hwidAtual,
@@ -385,24 +389,74 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
     } catch (_) {}
   }
 
+  Future<bool> adicionarOrigemGoogleDrive() async {
+    String? drive = state.caminhoGoogleDriveDetectado;
+    if (drive == null) {
+      drive = await _powerShellService.detectarCaminhoGoogleDrive();
+      if (drive != null) {
+        state = state.copyWith(caminhoGoogleDriveDetectado: drive);
+      }
+    }
+
+    if (drive != null && drive.isNotEmpty) {
+      if (state.moduloSelecionado == 1) {
+        adicionarItensCopiar([drive]);
+      } else if (state.moduloSelecionado == 2) {
+        adicionarItensMover([drive]);
+      } else if (state.moduloSelecionado == 0) {
+        adicionarArquivos([drive]);
+      }
+      state = state.copyWith(
+        logsTerminal: '${state.logsTerminal}> Adicionado Google Drive à origem: $drive\n',
+      );
+      return true;
+    } else {
+      state = state.copyWith(
+        logsTerminal: '${state.logsTerminal}> Google Drive Desktop não foi encontrado na unidade local.\n',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> setDestinoGoogleDrive() async {
+    String? drive = state.caminhoGoogleDriveDetectado;
+    if (drive == null) {
+      drive = await _powerShellService.detectarCaminhoGoogleDrive();
+      if (drive != null) {
+        state = state.copyWith(caminhoGoogleDriveDetectado: drive);
+      }
+    }
+
+    if (drive != null && drive.isNotEmpty) {
+      if (state.moduloSelecionado == 0) {
+        state = state.copyWith(diretorioDestino: drive);
+      } else if (state.moduloSelecionado == 1) {
+        state = state.copyWith(destinoCopiar: drive);
+      } else if (state.moduloSelecionado == 2) {
+        state = state.copyWith(destinoMover: drive);
+      } else if (state.moduloSelecionado == 3) {
+        state = state.copyWith(diretorioOrganizar: drive);
+      } else if (state.moduloSelecionado == 4) {
+        adicionarSearchPath(drive);
+      }
+      state = state.copyWith(
+        logsTerminal: '${state.logsTerminal}> Definido Google Drive como destino: $drive\n',
+      );
+      return true;
+    } else {
+      state = state.copyWith(
+        logsTerminal: '${state.logsTerminal}> Google Drive Desktop não foi encontrado na unidade local.\n',
+      );
+      return false;
+    }
+  }
+
   void toggleOrganizarAposTransferir(bool valor) {
     state = state.copyWith(organizarAposTransferir: valor);
   }
 
-  void setDestinoGoogleDrive() {
-    if (state.caminhoGoogleDriveDetectado == null) return;
-    final drive = state.caminhoGoogleDriveDetectado!;
-    if (state.moduloSelecionado == 0) {
-      state = state.copyWith(diretorioDestino: drive);
-    } else if (state.moduloSelecionado == 1) {
-      state = state.copyWith(destinoCopiar: drive);
-    } else if (state.moduloSelecionado == 2) {
-      state = state.copyWith(destinoMover: drive);
-    } else if (state.moduloSelecionado == 3) {
-      state = state.copyWith(diretorioOrganizar: drive);
-    } else if (state.moduloSelecionado == 4) {
-      adicionarSearchPath(drive);
-    }
+  void toggleAuditarSha256(bool valor) {
+    state = state.copyWith(auditarSha256: valor);
   }
 
   void setComando(String comando) {
@@ -515,7 +569,7 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
     );
   }
 
-  // Métodos Módulo 4: Procurar / Duplicados & Localizar Arquivos
+  // Métodos Módulo 4: Procurar / Duplicados & Busca Avançada
   void setDiretorioBusca(String? path) {
     if (path != null && path.isNotEmpty) {
       adicionarSearchPath(path);
@@ -698,6 +752,7 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
         diretorioDestino: state.destinoCopiar!,
         regraColisao: state.regraColisaoCopiar,
         organizarNoDestino: state.organizarAposTransferir,
+        auditarSha256: state.auditarSha256,
         onProgresso: (processados, total, itemAtual) {
           final prog = processados / total;
           state = state.copyWith(
@@ -743,6 +798,7 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
         diretorioDestino: state.destinoMover!,
         sobrescreverExistentes: state.sobrescreverMover,
         organizarNoDestino: state.organizarAposTransferir,
+        auditarSha256: state.auditarSha256,
         onProgresso: (processados, total, itemAtual) {
           final prog = processados / total;
           state = state.copyWith(
@@ -964,10 +1020,10 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
 
     state = state.copyWith(
       isLoading: true,
-      statusOperacao: 'Apagando arquivo...',
+      statusOperacao: 'Movendo arquivo para a Lixeira do Windows...',
     );
 
-    final ok = await _powerShellService.apagarArquivo(caminho);
+    final ok = await _powerShellService.enviarParaLixeira([caminho]);
 
     if (ok) {
       final novosGrupos = List<Map<String, dynamic>>.from(
@@ -993,14 +1049,14 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
         isLoading: false,
         gruposConflito: novosGrupos,
         grupoConflitoSelecionado: novoSel,
-        statusOperacao: 'Arquivo apagado com sucesso.',
-        logsTerminal: '${state.logsTerminal}> Arquivo removido: $caminho\n',
+        statusOperacao: 'Arquivo movido para a Lixeira do Windows.',
+        logsTerminal: '${state.logsTerminal}> [INFO] Arquivo movido para a Lixeira do Windows: $caminho\n',
       );
     } else {
       state = state.copyWith(
         isLoading: false,
-        statusOperacao: 'Falha ao apagar o arquivo.',
-        logsTerminal: '${state.logsTerminal}> Erro ao tentar apagar: $caminho\n',
+        statusOperacao: 'Falha ao enviar arquivo para a Lixeira.',
+        logsTerminal: '${state.logsTerminal}> [ERRO] Falha ao enviar para a Lixeira: $caminho\n',
       );
     }
   }

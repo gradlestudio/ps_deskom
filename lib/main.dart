@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import 'providers/commander_provider.dart';
 import 'widgets/about_dialog_widget.dart';
 import 'widgets/audio_preview_card.dart';
+import 'widgets/google_drive_dialog.dart';
 import 'widgets/update_dialog.dart';
 
 void main() async {
@@ -1115,6 +1116,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   horizontal: 10, vertical: 8),
                             ),
                           ),
+                          const SizedBox(width: 6),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final ok = await notifier.adicionarOrigemGoogleDrive();
+                              if (!ok && context.mounted) {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => const GoogleDriveDialog(),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.cloud_queue, size: 14),
+                            label: const Text('(+) Google Drive'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF4EC9B0),
+                              side: const BorderSide(color: Color(0xFF4EC9B0)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -1130,7 +1151,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     size: 40, color: Color(0xFF555555)),
                                 SizedBox(height: 8),
                                 Text(
-                                  'Nenhum item adicionado para cópia.\nUtilize "(+) Arquivos" ou "(+) Pasta".',
+                                  'Nenhum item adicionado para cópia.\nUtilize "(+) Arquivos", "(+) Pasta" ou "(+) Google Drive".',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Color(0xFF888888),
@@ -1235,20 +1256,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   horizontal: 10, vertical: 8),
                             ),
                           ),
-                          if (state.caminhoGoogleDriveDetectado != null) ...[
-                            const SizedBox(width: 6),
-                            OutlinedButton.icon(
-                              onPressed: () => notifier.setDestinoGoogleDrive(),
-                              icon: const Icon(Icons.cloud_queue, size: 16),
-                              label: const Text('Google Drive'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF4EC9B0),
-                                side: const BorderSide(color: Color(0xFF4EC9B0)),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 8),
-                              ),
+                          const SizedBox(width: 6),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final ok = await notifier.setDestinoGoogleDrive();
+                              if (!ok && context.mounted) {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => const GoogleDriveDialog(),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.cloud_queue, size: 16),
+                            label: const Text('Google Drive'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF4EC9B0),
+                              side: const BorderSide(color: Color(0xFF4EC9B0)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ],
@@ -1306,6 +1333,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const Expanded(
                           child: Text(
                             'Organizar automaticamente por categorias no destino',
+                            style: TextStyle(fontSize: 11, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2D2D2D),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFF3F3F46)),
+                    ),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: state.auditarSha256,
+                          activeColor: const Color(0xFF0078D4),
+                          onChanged: (val) {
+                            if (val != null) notifier.toggleAuditarSha256(val);
+                          },
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'Auditar integridade de transferência (Hash SHA-256)',
                             style: TextStyle(fontSize: 11, color: Colors.white),
                           ),
                         ),
@@ -1423,6 +1476,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   horizontal: 10, vertical: 8),
                             ),
                           ),
+                          const SizedBox(width: 6),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final ok = await notifier.adicionarOrigemGoogleDrive();
+                              if (!ok && context.mounted) {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => const GoogleDriveDialog(),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.cloud_queue, size: 14),
+                            label: const Text('(+) Google Drive'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF4EC9B0),
+                              side: const BorderSide(color: Color(0xFF4EC9B0)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -1438,7 +1511,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     size: 40, color: Color(0xFF555555)),
                                 SizedBox(height: 8),
                                 Text(
-                                  'Nenhum item adicionado para movimentação.\nUtilize "(+) Arquivos" ou "(+) Pasta".',
+                                  'Nenhum item adicionado para movimentação.\nUtilize "(+) Arquivos", "(+) Pasta" ou "(+) Google Drive".',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Color(0xFF888888),
@@ -1543,20 +1616,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   horizontal: 10, vertical: 8),
                             ),
                           ),
-                          if (state.caminhoGoogleDriveDetectado != null) ...[
-                            const SizedBox(width: 6),
-                            OutlinedButton.icon(
-                              onPressed: () => notifier.setDestinoGoogleDrive(),
-                              icon: const Icon(Icons.cloud_queue, size: 16),
-                              label: const Text('Google Drive'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF4EC9B0),
-                                side: const BorderSide(color: Color(0xFF4EC9B0)),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 8),
-                              ),
+                          const SizedBox(width: 6),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final ok = await notifier.setDestinoGoogleDrive();
+                              if (!ok && context.mounted) {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => const GoogleDriveDialog(),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.cloud_queue, size: 16),
+                            label: const Text('Google Drive'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF4EC9B0),
+                              side: const BorderSide(color: Color(0xFF4EC9B0)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ],
@@ -1614,6 +1693,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const Expanded(
                           child: Text(
                             'Organizar automaticamente por categorias no destino',
+                            style: TextStyle(fontSize: 11, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2D2D2D),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFF3F3F46)),
+                    ),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: state.auditarSha256,
+                          activeColor: const Color(0xFFD13438),
+                          onChanged: (val) {
+                            if (val != null) notifier.toggleAuditarSha256(val);
+                          },
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'Auditar integridade de transferência (Hash SHA-256)',
                             style: TextStyle(fontSize: 11, color: Colors.white),
                           ),
                         ),
@@ -2626,7 +2731,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             }
                           },
                           icon: const Icon(Icons.check_circle_outline, size: 16),
-                          label: const Text('Manter Este e Apagar Outros'),
+                          label: const Text('Manter Este e Mover Outros p/ Lixeira'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF107C41),
                             foregroundColor: Colors.white,
@@ -2634,17 +2739,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            notifier.removerArquivoDoConflito(
-                                caminho, state.grupoConflitoSelecionado);
-                          },
-                          icon: const Icon(Icons.delete_outline, size: 16),
-                          label: const Text('Excluir Este Arquivo'),
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.redAccent,
-                            side: const BorderSide(color: Colors.redAccent),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
+                        Tooltip(
+                          message: 'Enviar para a Lixeira do Windows',
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              notifier.removerArquivoDoConflito(
+                                  caminho, state.grupoConflitoSelecionado);
+                            },
+                            icon: const Icon(Icons.delete_outline, size: 16),
+                            label: const Text('Mover para a Lixeira'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.redAccent,
+                              side: const BorderSide(color: Colors.redAccent),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
                           ),
                         ),
                         if (!isIdentical) ...[

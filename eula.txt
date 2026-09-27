@@ -1,0 +1,29 @@
+CONTRATO DE LICENÇA DE UTILIZADOR FINAL (EULA)
+Produto: PS DesKom
+Versão: 1.0.0
+Publicador: Gradle Studio
+
+Leia atentamente este contrato antes de instalar ou utilizar o PS DesKom. Ao instalar, copiar ou utilizar este software, o utilizador concorda em ficar vinculado aos termos deste EULA.
+
+1. CONCESSÃO DE LICENÇA
+A Gradle Studio concede-lhe uma licença pessoal, intransferível e não exclusiva para utilizar o PS DesKom. A licença baseia-se num modelo vitalício associado à identificação de hardware (HWID) do seu dispositivo, validada através do nosso serviço de licenciamento (Dual-Master Key).
+
+2. DIREITOS DE AUTOR E PROPRIEDADE
+Todos os direitos, títulos e interesses relativos ao PS DesKom (incluindo, mas não se limitando a, código-fonte, imagens, ícones e design) são propriedade exclusiva da Gradle Studio. Este software está protegido por leis de direitos de autor e tratados internacionais.
+
+3. RESTRIÇÕES DE UTILIZAÇÃO
+É estritamente proibido:
+a) Modificar, traduzir, descompilar ou fazer engenharia reversa do software;
+b) Partilhar, vender, sublicenciar ou redistribuir a sua chave de licença ou a aplicação sem autorização prévia;
+c) Contornar ou tentar contornar os sistemas de validação de licença e auditoria de ficheiros (SHA-256).
+
+4. ISENÇÃO DE GARANTIAS
+O PS DesKom é fornecido "tal como está" (as is), sem qualquer tipo de garantia expressa ou implícita. A Gradle Studio não garante que as funções contidas no software satisfaçam plenamente os seus requisitos específicos ou que a operação do software seja ininterrupta ou livre de erros.
+
+5. LIMITAÇÃO DE RESPONSABILIDADE
+Em nenhuma circunstância a Gradle Studio será responsável por quaisquer danos diretos, indiretos, incidentais ou consequenciais (incluindo perda de dados ou lucros) decorrentes da utilização ou incapacidade de utilização do software.
+
+6. ACEITAÇÃO
+Ao marcar a caixa de seleção e prosseguir com a instalação, o utilizador reconhece que leu e compreendeu este contrato, aceitando a totalidade dos seus termos.
+
+Copyright (c) 2026 Gradle Studio. Todos os direitos reservados.
