@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/commander_provider.dart';
 
 class ActivationDialog extends ConsumerStatefulWidget {
@@ -17,6 +18,35 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
   void dispose() {
     _chaveController.dispose();
     super.dispose();
+  }
+
+  Future<void> _solicitarChaveWhatsApp(BuildContext context, String hwid) async {
+    final encodedHwid = Uri.encodeComponent(hwid);
+    final url =
+        'https://wa.me/5585996421006?text=Ol%C3%A1%21+Gostaria+de+ativar+minha+licen%C3%A7a+do+PS+DesKom.+Meu+HWID+%C3%A9%3A+$encodedHwid';
+    final uri = Uri.parse(url);
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Não foi possível abrir o navegador ou aplicativo do WhatsApp.'),
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erro ao tentar abrir o WhatsApp. Tente novamente.'),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -153,6 +183,22 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Botão de Solicitação via WhatsApp
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => _solicitarChaveWhatsApp(context, hwid),
+                icon: const Icon(Icons.chat_bubble_outline, size: 14),
+                label: const Text('Solicitar Chave via WhatsApp', style: TextStyle(fontSize: 11)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF25D366),
+                  side: const BorderSide(color: Color(0xFF25D366)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                ),
               ),
             ),
             const SizedBox(height: 16),

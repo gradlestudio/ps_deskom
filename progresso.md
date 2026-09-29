@@ -3,8 +3,8 @@
 ## 1. Regras Operacionais de Prompting
 - **MODO SILENCIOSO ESTRITO (SILENT MODE):** Proibido gerar respostas prolixas, resumos ou explicações teóricas no chat.
 - **AÇÃO DIRETA:** Modificar/criar arquivos diretamente no disco utilizando as ferramentas de edição.
-- **ATUALIZAÇÃO DE MEMÓRIA (OBRIGATÓRIO A CADA PROMPT):** Todo prompt executado DEVE, obrigatoriamente, ser finalizado com a atualização deste arquivo `progresso.md` (marcando itens concluídos, atualizando arquivos tocados e mantendo o backlog em dia).
-- **RESPOSTA EXCLUSIVA:** A resposta final no chat deve conter APENAS a lista dos caminhos de arquivos modificados/criados (incluindo o próprio `progresso.md`).
+- **ATUALIZAÇÃO DE MEMÓRIA DUPLA (OBRIGATÓRIO A CADA PROMPT):** Todo prompt executado DEVE, obrigatoriamente, ser finalizado com a atualização simultânea de dois arquivos de memória na raiz do projeto: `progresso.md` e `progresso_gemini.md` (marcando itens concluídos, detalhando arquivos tocados e mantendo o backlog em dia).
+- **RESPOSTA EXCLUSIVA:** A resposta final no chat deve conter APENAS a lista dos caminhos de arquivos modificados/criados (incluindo `progresso.md` e `progresso_gemini.md`).
 
 ## 2. Stack & Arquitetura
 - **Plataforma Alvo:** Windows Desktop (`.exe` nativo)
@@ -57,10 +57,13 @@
 - [x] Configuração do suporte multi-máquina com duas Chaves Mestras segregadas no `LicenseService` (`lib/services/license_service.dart`): `GRADLE-STUDIO-DEV-2026-MASTER` (Plano: "Gradle Studio Dev") e `GRADLE-STUDIO-SERVER-2026-MASTER` (Plano: "Gradle Studio Server"), com persistência local vitalícia via SharedPreferences.
 - [x] Implementação de exclusão segura para a Lixeira do Windows (Recycle Bin via .NET/PowerShell) no Módulo 5 (Procurar) com feedback em tempo real no console.
 - [x] Correção de codificação de texto do contrato EULA (`eula.txt`) para UTF-8 limpo com suporte correto a caracteres acentuados em português.
+- [x] Configuração dos metadados oficiais de produção do executável nativo Windows em `windows/runner/Runner.rc` (`CompanyName`: "Gradle Studio", `FileDescription`: "PS DesKom - Gestor Avançado de Arquivos e Duplicados", `FileVersion`/`ProductVersion`: "1.0.0.0", `LegalCopyright`: "Copyright (C) 2026 Gradle Studio. Todos os direitos reservados.", `OriginalFilename`: "ps_deskom.exe").
+- [x] Criação das ferramentas utilitárias CLI de geração de Chaves de Licença Comercial (`tools/gerar_licenca.dart` e `tools/gerar_licenca.ps1`) com cálculo SHA-256 idêntico ao `LicenseService`, parâmetro de linha de comando ou entrada interativa e lembrete das Chaves Mestras institucionais.
+- [x] Integração de solicitação de licença via WhatsApp Business (+55 85 99642-1006) no `ActivationDialog` (`lib/widgets/activation_dialog.dart`) com mensagem pré-formatada contendo o HWID da máquina via `url_launcher`.
+- [x] Estruturação da infraestrutura do Bot autônomo de Licenciamento WhatsApp em Node.js (`tools/whatsapp_bot/package.json` e `tools/whatsapp_bot/bot.js`) utilizando `@whiskeysockets/baileys` e `qrcode-terminal`, com cálculo automático SHA-256 de chaves comerciais `KEY-XXXX-XXXX-XXXX-XXXX` para mensagens contendo HWID de clientes do PS DesKom.
 
 ## 5. Backlog Operacional (Próximos Marcos)
-- [x] Correção de codificação UTF-8 no arquivo `eula.txt`.
-- [ ] Preparação dos metadados de build, versão e ícones do executável Windows.
+- [x] Estruturação e configuração do Bot de Licenciamento WhatsApp em Node.js (`tools/whatsapp_bot/`).
 - [ ] Compilação de produção (`flutter build windows --release`) das edições do PS DesKom.
-- [ ] Estruturação do instalador modular do Windows (Inno Setup / MSI).
+- [ ] Estruturação do instalador modular do Windows (HM NIS Edit / NSIS).
 - [ ] Planejamento e desacoplamento do módulo de IA Local para a Versão Dev.
