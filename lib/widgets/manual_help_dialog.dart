@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
 class ManualHelpDialog extends StatelessWidget {
   const ManualHelpDialog({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return DefaultTabController(
       length: 4,
       child: Dialog(
@@ -28,19 +31,19 @@ class ManualHelpDialog extends StatelessWidget {
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
-                        'PS DesKom — Manual & Guia Rápido',
-                        style: TextStyle(
+                        l10n?.manualTitulo ?? 'PS DesKom — Manual & Guia Rápido',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
-                        'Instruções operacionais e boas práticas de gerenciamento de arquivos.',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF888888)),
+                        l10n?.manualSubtitulo ?? 'Instruções operacionais e boas práticas de gerenciamento de arquivos.',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF888888)),
                       ),
                     ],
                   ),
@@ -55,17 +58,17 @@ class ManualHelpDialog extends StatelessWidget {
                     bottom: BorderSide(color: Color(0xFF3F3F46), width: 1),
                   ),
                 ),
-                child: const TabBar(
+                child: TabBar(
                   isScrollable: true,
-                  labelColor: Color(0xFF0078D4),
-                  unselectedLabelColor: Color(0xFF888888),
-                  indicatorColor: Color(0xFF0078D4),
+                  labelColor: const Color(0xFF0078D4),
+                  unselectedLabelColor: const Color(0xFF888888),
+                  indicatorColor: const Color(0xFF0078D4),
                   indicatorWeight: 2,
                   tabs: [
-                    Tab(text: '1. Módulos do Sistema'),
-                    Tab(text: '2. Duplicados & Mídia'),
-                    Tab(text: '3. Dicas & Nuvem'),
-                    Tab(text: '4. Suporte & Licença'),
+                    Tab(text: l10n?.abaModulos ?? '1. Módulos do Sistema'),
+                    Tab(text: l10n?.abaDuplicados ?? '2. Duplicados & Mídia'),
+                    Tab(text: l10n?.abaNuvem ?? '3. Dicas & Nuvem'),
+                    Tab(text: l10n?.abaSuporte ?? '4. Suporte & Licença'),
                   ],
                 ),
               ),
@@ -75,10 +78,10 @@ class ManualHelpDialog extends StatelessWidget {
               Expanded(
                 child: TabBarView(
                   children: [
-                    _buildTabModulo(),
-                    _buildTabDuplicados(),
-                    _buildTabNuvem(),
-                    _buildTabSuporte(),
+                    _buildTabModulo(l10n),
+                    _buildTabDuplicados(l10n),
+                    _buildTabNuvem(l10n),
+                    _buildTabSuporte(l10n),
                   ],
                 ),
               ),
@@ -96,7 +99,7 @@ class ManualHelpDialog extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 12),
                     ),
-                    child: const Text('Fechar Manual'),
+                    child: Text(l10n?.fecharManual ?? 'Fechar Manual'),
                   ),
                 ],
               ),
@@ -107,39 +110,39 @@ class ManualHelpDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildTabModulo() {
+  Widget _buildTabModulo(AppLocalizations? l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.only(right: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _SecaoTitulo(titulo: 'Módulo 1: DESCOMPACTAR'),
+        children: [
+          _SecaoTitulo(titulo: l10n?.mod1Titulo ?? 'Módulo 1: DESCOMPACTAR'),
           _ItemTexto(
-            texto:
+            texto: l10n?.mod1Desc ??
                 'Extrai arquivos compactados (.zip, .rar, .7z, .tar) em lote via PowerShell nativo. Ative a opção "Criar pasta com o nome do arquivo" para manter o destino limpo.',
           ),
-          SizedBox(height: 12),
-          _SecaoTitulo(titulo: 'Módulo 2: COPIAR'),
+          const SizedBox(height: 12),
+          _SecaoTitulo(titulo: l10n?.mod2Titulo ?? 'Módulo 2: COPIAR'),
           _ItemTexto(
-            texto:
+            texto: l10n?.mod2Desc ??
                 'Copia arquivos ou pastas completas para o destino configurado com regras de colisão personalizáveis: Substituir, Pular duplicados ou Manter Ambos (renomear).',
           ),
-          SizedBox(height: 12),
-          _SecaoTitulo(titulo: 'Módulo 3: MOVER'),
+          const SizedBox(height: 12),
+          _SecaoTitulo(titulo: l10n?.mod3Titulo ?? 'Módulo 3: MOVER'),
           _ItemTexto(
-            texto:
+            texto: l10n?.mod3Desc ??
                 'Transfere itens no mesmo disco ou entre volumes. Suporta opção de sobrescrever arquivos existentes e tratamento de erros de permissão no Windows.',
           ),
-          SizedBox(height: 12),
-          _SecaoTitulo(titulo: 'Módulo 4: ORGANIZAR'),
+          const SizedBox(height: 12),
+          _SecaoTitulo(titulo: l10n?.mod4Titulo ?? 'Módulo 4: ORGANIZAR'),
           _ItemTexto(
-            texto:
+            texto: l10n?.mod4Desc ??
                 'Classifica automaticamente arquivos soltos em subpastas temáticas (Documentos PDF, Músicas, Imagens, Vídeos, Instaladores, etc.). Permite criar regras customizadas por extensão.',
           ),
-          SizedBox(height: 12),
-          _SecaoTitulo(titulo: 'Módulo 5: PROCURAR'),
+          const SizedBox(height: 12),
+          _SecaoTitulo(titulo: l10n?.mod5Titulo ?? 'Módulo 5: PROCURAR'),
           _ItemTexto(
-            texto:
+            texto: l10n?.mod5Desc ??
                 'Varre diretórios em busca de arquivos duplicados via hash binário SHA-256 e arquivos com mesmo nome. Oferece painel de comparação lado a lado.',
           ),
         ],
@@ -147,33 +150,33 @@ class ManualHelpDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildTabDuplicados() {
+  Widget _buildTabDuplicados(AppLocalizations? l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.only(right: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _SecaoTitulo(titulo: 'Análise Criptográfica SHA-256'),
+        children: [
+          _SecaoTitulo(titulo: l10n?.sha256Titulo ?? 'Análise Criptográfica SHA-256'),
           _ItemTexto(
-            texto:
+            texto: l10n?.sha256Desc ??
                 'A varredura realiza uma triagem prévia por tamanho de arquivo e em seguida calcula o hash SHA-256 dos conteúdos para garantir 100% de certeza ao identificar duplicados idênticos.',
           ),
-          SizedBox(height: 12),
-          _SecaoTitulo(titulo: 'Reprodutor de Áudio Integrado'),
+          const SizedBox(height: 12),
+          _SecaoTitulo(titulo: l10n?.audioTitulo ?? 'Reprodutor de Áudio Integrado'),
           _ItemTexto(
-            texto:
+            texto: l10n?.audioDesc ??
                 'Arquivos de áudio (.mp3, .wav, .flac, .aac, .m4a) possuem pré-visualizador próprio nos cards de comparação com slider de progresso, botão play/pause e mute instantâneo.',
           ),
-          SizedBox(height: 12),
-          _SecaoTitulo(titulo: 'Execução de Vídeos e Arquivos'),
+          const SizedBox(height: 12),
+          _SecaoTitulo(titulo: l10n?.videoTitulo ?? 'Execução de Vídeos e Arquivos'),
           _ItemTexto(
-            texto:
+            texto: l10n?.videoDesc ??
                 'Mídias de vídeo e executáveis contêm botão de ação rápida "Abrir no Player Padrão", permitindo visualizar a mídia no reprodutor nativo do Windows em 0ms.',
           ),
-          SizedBox(height: 12),
-          _SecaoTitulo(titulo: 'Interrupção Segura de Busca'),
+          const SizedBox(height: 12),
+          _SecaoTitulo(titulo: l10n?.buscaSeguraTitulo ?? 'Interrupção Segura de Busca'),
           _ItemTexto(
-            texto:
+            texto: l10n?.buscaSeguraDesc ??
                 'A qualquer momento durante uma varredura longa, clique em "INTERROMPER BUSCA". O processo em segundo plano será encerrado com segurança via taskkill sem travar o app.',
           ),
         ],
@@ -181,27 +184,27 @@ class ManualHelpDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildTabNuvem() {
+  Widget _buildTabNuvem(AppLocalizations? l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.only(right: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _SecaoTitulo(titulo: 'Integração com Google Drive Desktop'),
+        children: [
+          _SecaoTitulo(titulo: l10n?.driveTitulo ?? 'Integração com Google Drive Desktop'),
           _ItemTexto(
-            texto:
+            texto: l10n?.driveDesc ??
                 'Se o aplicativo Google Drive Desktop estiver instalado no Windows, o PS DesKom detectará a unidade automaticamente e exibirá o botão "Google Drive" nos seletores de destino.',
           ),
-          SizedBox(height: 12),
-          _SecaoTitulo(titulo: 'Pipelines Combinados (Transferir + Organizar)'),
+          const SizedBox(height: 12),
+          _SecaoTitulo(titulo: l10n?.pipelinesTitulo ?? 'Pipelines Combinados (Transferir + Organizar)'),
           _ItemTexto(
-            texto:
+            texto: l10n?.pipelinesDesc ??
                 'Nos módulos Copiar e Mover, marque a caixa "Organizar automaticamente por categorias no destino". Os arquivos serão transferidos e imediatamente classificados nas subpastas adequadas.',
           ),
-          SizedBox(height: 12),
-          _SecaoTitulo(titulo: 'Otimização para Discos e Redes'),
+          const SizedBox(height: 12),
+          _SecaoTitulo(titulo: l10n?.otimizacaoTitulo ?? 'Otimização para Discos e Redes'),
           _ItemTexto(
-            texto:
+            texto: l10n?.otimizacaoDesc ??
                 'A engine opera diretamente sobre o Windows PowerShell Core codificado em UTF-16LE EncodedCommand, garantindo alta performance mesmo ao manipular grandes volumes em NAS ou HDs externos.',
           ),
         ],
@@ -209,26 +212,26 @@ class ManualHelpDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildTabSuporte() {
+  Widget _buildTabSuporte(AppLocalizations? l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.only(right: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _SecaoTitulo(titulo: 'Licença Offline por HWID'),
+        children: [
+          _SecaoTitulo(titulo: l10n?.licencaHwidTitulo ?? 'Licença Offline por HWID'),
           _ItemTexto(
-            texto:
+            texto: l10n?.licencaHwidDesc ??
                 'O PS DesKom é ativado utilizando o identificador único do seu computador (HWID). Uma vez ativada, a licença é permanente e não requer conexão constante com a internet.',
           ),
-          SizedBox(height: 12),
-          _SecaoTitulo(titulo: 'Atualizações Vitalícias Incluídas'),
+          const SizedBox(height: 12),
+          _SecaoTitulo(titulo: l10n?.atualizacoesTitulo ?? 'Atualizações Vitalícias Incluídas'),
           _ItemTexto(
-            texto:
+            texto: l10n?.atualizacoesDesc ??
                 'Todas as novas versões e melhorias disponibilizadas pela Gradle Studio no repositório oficial estão inclusas gratuitamente para os clientes licenciados.',
           ),
-          SizedBox(height: 12),
-          _SecaoTitulo(titulo: 'Canais Oficiais de Suporte'),
-          _ItemTexto(
+          const SizedBox(height: 12),
+          _SecaoTitulo(titulo: l10n?.canaisSuporteTitulo ?? 'Canais Oficiais de Suporte'),
+          const _ItemTexto(
             texto:
                 '• WhatsApp: +55 (85) 99642-1006\n• E-mail: gradlestudio.dev@gmail.com\n• Instagram: @gradlestudio.dev\n\nEquipe Técnica Gradle Studio — Fortaleza/CE',
           ),

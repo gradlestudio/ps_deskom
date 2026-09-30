@@ -3,6 +3,19 @@ import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'powershell_service.dart';
 
+enum AppEdition {
+  bas('BAS'),
+  pro('PRO'),
+  max('MAX'),
+  devBas('DEV-BAS'),
+  devPro('DEV-PRO'),
+  devMax('DEV-MAX'),
+  devPj('DEV-PJ');
+
+  final String code;
+  const AppEdition(this.code);
+}
+
 class LicenseService {
   static const String masterKeyDev = 'GRADLE-STUDIO-DEV-2026-MASTER';
   static const String masterKeyServer = 'GRADLE-STUDIO-SERVER-2026-MASTER';
@@ -10,9 +23,12 @@ class LicenseService {
   static const String secretSalt = 'GRADLE-STUDIO-2026-SECRET';
 
   final PowerShellService _powerShellService;
+  final AppEdition edicaoAtual;
 
-  LicenseService({PowerShellService? powerShellService})
-      : _powerShellService = powerShellService ?? PowerShellService();
+  LicenseService({
+    PowerShellService? powerShellService,
+    this.edicaoAtual = AppEdition.devPro,
+  }) : _powerShellService = powerShellService ?? PowerShellService();
 
   Future<String> obterHwid() async {
     try {
@@ -32,9 +48,9 @@ Write-Output \$uuid
       final b3 = digest.substring(8, 12);
       final b4 = digest.substring(12, 16);
 
-      return 'DESK-$b1-$b2-$b3-$b4';
+      return 'DESK-${edicaoAtual.code}-$b1-$b2-$b3-$b4';
     } catch (_) {
-      return 'DESK-8849-3921-9941-2026';
+      return 'DESK-${edicaoAtual.code}-8849-3921-9941-2026';
     }
   }
 

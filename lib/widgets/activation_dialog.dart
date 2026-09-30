@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/commander_provider.dart';
 
 class ActivationDialog extends ConsumerStatefulWidget {
@@ -21,14 +22,15 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
   }
 
   Future<void> _solicitarChaveWhatsApp(BuildContext context, String hwid) async {
-    final encodedHwid = Uri.encodeComponent(hwid);
-    final url =
-        'https://wa.me/5585996421006?text=Ol%C3%A1%21+Gostaria+de+ativar+minha+licen%C3%A7a+do+PS+DesKom.+Meu+HWID+%C3%A9%3A+$encodedHwid';
-    final uri = Uri.parse(url);
+    final currentLang = Localizations.localeOf(context).languageCode.toUpperCase();
+    final titulo = AppLocalizations.of(context)?.ativacaoTitulo ?? 'Ativação do PS DesKom';
+    final String rawText = '$titulo: $hwid [LANG:$currentLang]';
+    final String encodedText = Uri.encodeComponent(rawText);
+    final Uri whatsappUri = Uri.parse('https://wa.me/5585996421006?text=$encodedText');
 
     try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (await canLaunchUrl(whatsappUri)) {
+        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -53,6 +55,7 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
   Widget build(BuildContext context) {
     final state = ref.watch(commanderProvider);
     final notifier = ref.read(commanderProvider.notifier);
+    final l10n = AppLocalizations.of(context);
 
     final isAtivado = state.softwareAtivado;
     final statusTexto = state.statusLicencaTexto;
@@ -76,9 +79,9 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
                 const Icon(Icons.vpn_key_outlined,
                     color: Color(0xFF0078D4), size: 24),
                 const SizedBox(width: 10),
-                const Text(
-                  'Ativação do PS DesKom',
-                  style: TextStyle(
+                Text(
+                  l10n?.ativacaoTitulo ?? 'Ativação do PS DesKom',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -133,9 +136,9 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
             const SizedBox(height: 16),
 
             // Identificador do Computador (HWID)
-            const Text(
-              'IDENTIFICADOR DO COMPUTADOR (HWID):',
-              style: TextStyle(
+            Text(
+              l10n?.identificadorComputador ?? 'IDENTIFICADOR DO COMPUTADOR (HWID):',
+              style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF888888),
@@ -168,13 +171,13 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
                       Clipboard.setData(ClipboardData(text: hwid));
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('HWID copiado para a área de transferência!'),
+                          content: Text('HWID copiado!'),
                           backgroundColor: Color(0xFF0078D4),
                         ),
                       );
                     },
                     icon: const Icon(Icons.copy, size: 14),
-                    label: const Text('Copiar', style: TextStyle(fontSize: 11)),
+                    label: Text(l10n?.copiarHwid ?? 'Copiar', style: const TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFCCCCCC),
                       side: const BorderSide(color: Color(0xFF3F3F46)),
@@ -193,7 +196,7 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
               child: OutlinedButton.icon(
                 onPressed: () => _solicitarChaveWhatsApp(context, hwid),
                 icon: const Icon(Icons.chat_bubble_outline, size: 14),
-                label: const Text('Solicitar Chave via WhatsApp', style: TextStyle(fontSize: 11)),
+                label: Text(l10n?.solicitarChaveWhats ?? 'Solicitar Chave via WhatsApp', style: const TextStyle(fontSize: 11)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF25D366),
                   side: const BorderSide(color: Color(0xFF25D366)),
@@ -204,9 +207,9 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
             const SizedBox(height: 16),
 
             // Entrada de Chave de Licença
-            const Text(
-              'CHAVE DE LICENÇA (LICENSE KEY):',
-              style: TextStyle(
+            Text(
+              l10n?.chaveLicencaRotulo ?? 'CHAVE DE LICENÇA (LICENSE KEY):',
+              style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF888888),
@@ -217,11 +220,11 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
             TextField(
               controller: _chaveController,
               style: const TextStyle(color: Colors.white, fontSize: 13, fontFamily: 'Consolas'),
-              decoration: const InputDecoration(
-                hintText: 'Insira sua chave (ex: KEY-XXXX-YYYY-ZZZZ)',
+              decoration: InputDecoration(
+                hintText: l10n?.hintChaveLicenca ?? 'Insira sua chave (ex: KEY-XXXX-YYYY-ZZZZ)',
                 isDense: true,
                 contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             ),
             const SizedBox(height: 20),
@@ -232,8 +235,8 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Fechar',
-                      style: TextStyle(color: Color(0xFF888888))),
+                  child: Text(l10n?.fechar ?? 'Fechar',
+                      style: const TextStyle(color: Color(0xFF888888))),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
@@ -255,7 +258,7 @@ class _ActivationDialogState extends ConsumerState<ActivationDialog> {
                     }
                   },
                   icon: const Icon(Icons.check, size: 16),
-                  label: const Text('Validar e Ativar Licença'),
+                  label: Text(l10n?.validarAtivarLicenca ?? 'Validar e Ativar Licença'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0078D4),
                     foregroundColor: Colors.white,

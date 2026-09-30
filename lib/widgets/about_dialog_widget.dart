@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/commander_provider.dart';
 import 'activation_dialog.dart';
 import 'manual_help_dialog.dart';
@@ -77,6 +78,7 @@ class _AboutDialogWidgetState extends ConsumerState<AboutDialogWidget> {
     final state = ref.watch(commanderProvider);
     final statusTexto = state.statusLicencaTexto;
     final isAtivado = state.softwareAtivado;
+    final l10n = AppLocalizations.of(context);
 
     return Dialog(
       backgroundColor: const Color(0xFF161616),
@@ -153,18 +155,18 @@ class _AboutDialogWidgetState extends ConsumerState<AboutDialogWidget> {
                         ],
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'Versão 1.0.0 (Build 2026)',
-                        style: TextStyle(
+                      Text(
+                        l10n?.versao ?? 'Versão 1.0.0 (Build 2026)',
+                        style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF4EC9B0),
                           fontFamily: 'Consolas',
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'Desenvolvido por Gradle Studio',
-                        style: TextStyle(
+                      Text(
+                        l10n?.desenvolvidoPor ?? 'Desenvolvido por Gradle Studio',
+                        style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF888888),
                         ),
@@ -188,20 +190,20 @@ class _AboutDialogWidgetState extends ConsumerState<AboutDialogWidget> {
                     child: ListView(
                       controller: _scrollController,
                       physics: const NeverScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 40),
+                      children: [
+                        const SizedBox(height: 40),
                         Text(
-                          'ARQUITETURA & ENGENHARIA DE SOFTWARE',
+                          l10n?.arquiteturaEngenharia ?? 'ARQUITETURA & ENGENHARIA DE SOFTWARE',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF888888),
                             letterSpacing: 1.2,
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text(
+                        const SizedBox(height: 4),
+                        const Text(
                           'Pietro Villani',
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -210,19 +212,19 @@ class _AboutDialogWidgetState extends ConsumerState<AboutDialogWidget> {
                             color: Colors.white,
                           ),
                         ),
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
                         Text(
-                          'PRODUÇÃO & DESIGN',
+                          l10n?.producaoDesign ?? 'PRODUÇÃO & DESIGN',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF888888),
                             letterSpacing: 1.2,
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text(
+                        const SizedBox(height: 4),
+                        const Text(
                           'Gradle Studio',
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -231,19 +233,19 @@ class _AboutDialogWidgetState extends ConsumerState<AboutDialogWidget> {
                             color: Color(0xFF0078D4),
                           ),
                         ),
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
                         Text(
-                          'TECNOLOGIAS NATIVAS',
+                          l10n?.tecnologiasNativas ?? 'TECNOLOGIAS NATIVAS',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF888888),
                             letterSpacing: 1.2,
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text(
+                        const SizedBox(height: 4),
+                        const Text(
                           'Flutter Desktop & Windows PowerShell Core',
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -251,40 +253,41 @@ class _AboutDialogWidgetState extends ConsumerState<AboutDialogWidget> {
                             color: Color(0xFFCCCCCC),
                           ),
                         ),
-                        SizedBox(height: 24),
+                        const SizedBox(height: 24),
                         Text(
-                          'AVISO LEGAL & EULA',
+                          l10n?.avisoLegalEula ?? 'AVISO LEGAL & EULA',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFFD13438),
                             letterSpacing: 1.2,
                           ),
                         ),
-                        SizedBox(height: 6),
+                        const SizedBox(height: 6),
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: Text(
-                            'Este software é disponibilizado no estado em que se encontra ("AS IS"), sem garantias expressas ou implícitas. O usuário é inteiramente responsável por validar e confirmar exclusões e modificações em seus discos e partições.',
+                            l10n?.textoAvisoLegal ??
+                                'Este software é disponibilizado no estado em que se encontra ("AS IS"), sem garantias expressas ou implícitas. O usuário é inteiramente responsável por validar e confirmar exclusões e modificações em seus discos e partições.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 10,
                               color: Color(0xFF888888),
                               height: 1.4,
                             ),
                           ),
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Text(
-                          'Todos os direitos reservados © 2026 Gradle Studio.',
+                          l10n?.direitosReservados ?? 'Todos os direitos reservados © 2026 Gradle Studio.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 10,
                             color: Color(0xFF666666),
                           ),
                         ),
-                        SizedBox(height: 60),
+                        const SizedBox(height: 60),
                       ],
                     ),
                   ),
@@ -340,7 +343,7 @@ class _AboutDialogWidgetState extends ConsumerState<AboutDialogWidget> {
                   onPressed: () =>
                       ref.read(commanderProvider.notifier).checarAtualizacaoManual(context),
                   icon: const Icon(Icons.system_update_outlined, size: 14),
-                  label: const Text('Verificar Atualizações', style: TextStyle(fontSize: 11)),
+                  label: Text(l10n?.verificarAtualizacoes ?? 'Verificar Atualizações', style: const TextStyle(fontSize: 11)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFCCCCCC),
                     side: const BorderSide(color: Color(0xFF3F3F46)),
@@ -349,7 +352,7 @@ class _AboutDialogWidgetState extends ConsumerState<AboutDialogWidget> {
                 OutlinedButton.icon(
                   onPressed: () => _exibirSubdialogoLicenca(context),
                   icon: const Icon(Icons.key_outlined, size: 14),
-                  label: const Text('Ativação de Licença', style: TextStyle(fontSize: 11)),
+                  label: Text(l10n?.ativacaoLicenca ?? 'Ativação de Licença', style: const TextStyle(fontSize: 11)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF4EC9B0),
                     side: const BorderSide(color: Color(0xFF4EC9B0)),
@@ -363,7 +366,7 @@ class _AboutDialogWidgetState extends ConsumerState<AboutDialogWidget> {
                     );
                   },
                   icon: const Icon(Icons.help_outline, size: 14),
-                  label: const Text('Manual / Ajuda', style: TextStyle(fontSize: 11)),
+                  label: Text(l10n?.manualAjuda ?? 'Manual / Ajuda', style: const TextStyle(fontSize: 11)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFCCCCCC),
                     side: const BorderSide(color: Color(0xFF3F3F46)),
@@ -399,7 +402,7 @@ class _AboutDialogWidgetState extends ConsumerState<AboutDialogWidget> {
                     backgroundColor: const Color(0xFF2D2D2D),
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Fechar'),
+                  child: Text(l10n?.fechar ?? 'Fechar'),
                 ),
               ],
             ),

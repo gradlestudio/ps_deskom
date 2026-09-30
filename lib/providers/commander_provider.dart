@@ -156,7 +156,7 @@ class CommanderState {
     this.statusOperacao = '',
   }) : categoriasSelecionadas = categoriasSelecionadas ??
             Map.fromEntries(
-                categoriasDefinidas.keys.map((k) => MapEntry(k, true)));
+                categoriasDefinidas.keys.map((k) => MapEntry(k, false)));
 
   CommanderState copyWith({
     bool? isLoading,
@@ -488,7 +488,7 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
   }
 
   void setDiretorioDestino(String? destino) {
-    state = state.copyWith(diretorioDestino: destino);
+    state = state.copyWith(diretorioDestino: destino ?? '');
   }
 
   void toggleCriarSubpasta(bool value) {
@@ -514,7 +514,7 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
   }
 
   void setDestinoCopiar(String? destino) {
-    state = state.copyWith(destinoCopiar: destino);
+    state = state.copyWith(destinoCopiar: destino ?? '');
   }
 
   void setRegraColisaoCopiar(String regra) {
@@ -540,7 +540,7 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
   }
 
   void setDestinoMover(String? destino) {
-    state = state.copyWith(destinoMover: destino);
+    state = state.copyWith(destinoMover: destino ?? '');
   }
 
   void toggleSobrescreverMover(bool valor) {
@@ -549,7 +549,7 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
 
   // Métodos Módulo 3: Organizar
   void setDiretorioOrganizar(String? path) {
-    state = state.copyWith(diretorioOrganizar: path);
+    state = state.copyWith(diretorioOrganizar: path ?? '');
   }
 
   void toggleIncludeSubfoldersOrganizar(bool valor) {

@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:window_manager/window_manager.dart';
+import 'l10n/app_localizations.dart';
 import 'providers/commander_provider.dart';
+import 'providers/locale_provider.dart';
 import 'widgets/about_dialog_widget.dart';
 import 'widgets/audio_preview_card.dart';
 import 'widgets/google_drive_dialog.dart';
@@ -179,14 +181,19 @@ class _ImageZoomDialogState extends State<ImageZoomDialog> {
   }
 }
 
-class PSDesKomApp extends StatelessWidget {
+class PSDesKomApp extends ConsumerWidget {
   const PSDesKomApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentLocale = ref.watch(localeProvider);
+
     return MaterialApp(
       title: 'PS DesKom',
       debugShowCheckedModeBanner: false,
+      locale: currentLocale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF1E1E1E),
         colorScheme: const ColorScheme.dark(
@@ -330,6 +337,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  // Google Drive Flexível com Navegação em Subpastas
+  Future<void> _selecionarOrigemGoogleDrive(
+    BuildContext context,
+    CommanderState state,
+    CommanderNotifier notifier,
+  ) async {
+    String? drivePath = state.caminhoGoogleDriveDetectado;
+    if (drivePath == null || drivePath.isEmpty || !Directory(drivePath).existsSync()) {
+      await notifier.verificarGoogleDrive();
+      drivePath = ref.read(commanderProvider).caminhoGoogleDriveDetectado;
+    }
+
+    if (drivePath != null && drivePath.isNotEmpty && Directory(drivePath).existsSync()) {
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        initialDirectory: drivePath,
+        dialogTitle: 'Selecionar pasta do Google Drive (Origem)',
+      );
+      if (selectedDirectory != null && selectedDirectory.isNotEmpty) {
+        if (state.moduloSelecionado == 1) {
+          notifier.adicionarItensCopiar([selectedDirectory]);
+        } else if (state.moduloSelecionado == 2) {
+          notifier.adicionarItensMover([selectedDirectory]);
+        } else if (state.moduloSelecionado == 0) {
+          notifier.adicionarArquivos([selectedDirectory]);
+        }
+      }
+    } else {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => const GoogleDriveDialog(),
+        );
+      }
+    }
+  }
+
+  Future<void> _selecionarDestinoGoogleDrive(
+    BuildContext context,
+    CommanderState state,
+    CommanderNotifier notifier,
+  ) async {
+    String? drivePath = state.caminhoGoogleDriveDetectado;
+    if (drivePath == null || drivePath.isEmpty || !Directory(drivePath).existsSync()) {
+      await notifier.verificarGoogleDrive();
+      drivePath = ref.read(commanderProvider).caminhoGoogleDriveDetectado;
+    }
+
+    if (drivePath != null && drivePath.isNotEmpty && Directory(drivePath).existsSync()) {
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        initialDirectory: drivePath,
+        dialogTitle: 'Selecionar pasta do Google Drive (Destino)',
+      );
+      if (selectedDirectory != null && selectedDirectory.isNotEmpty) {
+        if (state.moduloSelecionado == 0) {
+          notifier.setDiretorioDestino(selectedDirectory);
+        } else if (state.moduloSelecionado == 1) {
+          notifier.setDestinoCopiar(selectedDirectory);
+        } else if (state.moduloSelecionado == 2) {
+          notifier.setDestinoMover(selectedDirectory);
+        } else if (state.moduloSelecionado == 3) {
+          notifier.setDiretorioOrganizar(selectedDirectory);
+        } else if (state.moduloSelecionado == 4) {
+          notifier.adicionarSearchPath(selectedDirectory);
+        }
+      }
+    } else {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => const GoogleDriveDialog(),
+        );
+      }
+    }
+  }
+
   // Procurar / Duplicados
   Future<void> _selecionarDiretorioBusca() async {
     String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
@@ -408,13 +490,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final state = ref.watch(commanderProvider);
     final notifier = ref.read(commanderProvider.notifier);
+    final l10n = AppLocalizations.of(context);
 
     final List<String> modulos = [
-      'DESCOMPACTAR',
-      'COPIAR',
-      'MOVER',
-      'ORGANIZAR',
-      'PROCURAR',
+      l10n?.descompactar ?? 'DESCOMPACTAR',
+      l10n?.copiar ?? 'COPIAR',
+      l10n?.mover ?? 'MOVER',
+      l10n?.organizar ?? 'ORGANIZAR',
+      l10n?.procurar ?? 'PROCURAR',
     ];
 
     return Scaffold(
@@ -450,7 +533,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         icon: const Icon(Icons.system_update_outlined,
                             size: 16, color: Color(0xFF107C41)),
                         label: Text(
-                          'Atualização Disponível (v${state.dadosNovaVersao!['versao_recente']})',
+                          '${l10n?.atualizacaoDisponivel ?? 'Atualização Disponível'} (v${state.dadosNovaVersao!['versao_recente']})',
                           style: const TextStyle(fontSize: 12, color: Color(0xFF4EC9B0)),
                         ),
                         style: OutlinedButton.styleFrom(
@@ -460,10 +543,155 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(width: 8),
                     ],
+                    // Seletor Rápido de Idioma
+                    PopupMenuButton<Locale>(
+                      tooltip: 'Alterar Idioma / Change Language / Cambiar Idioma / Cambia Lingua / Changer de Langue / Sprache Ändern',
+                      color: const Color(0xFF2D2D2D),
+                      offset: const Offset(0, 40),
+                      onSelected: (newLocale) {
+                        ref.read(localeProvider.notifier).setLocale(newLocale);
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: const Locale('pt', 'BR'),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: Image.asset('assets/flags/br.gif',
+                                    width: 22, height: 15, fit: BoxFit.cover),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('Português (BR)',
+                                  style: TextStyle(fontSize: 12, color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: const Locale('en', 'US'),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: Image.asset('assets/flags/uk.gif',
+                                    width: 22, height: 15, fit: BoxFit.cover),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('English (US)',
+                                  style: TextStyle(fontSize: 12, color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: const Locale('de', 'DE'),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: Image.asset('assets/flags/de.gif',
+                                    width: 22, height: 15, fit: BoxFit.cover),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('Deutsch (DE)',
+                                  style: TextStyle(fontSize: 12, color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: const Locale('es', 'ES'),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: Image.asset('assets/flags/es.gif',
+                                    width: 22, height: 15, fit: BoxFit.cover),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('Español (ES)',
+                                  style: TextStyle(fontSize: 12, color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: const Locale('fr', 'FR'),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: Image.asset('assets/flags/fr.gif',
+                                    width: 22, height: 15, fit: BoxFit.cover),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('Français (FR)',
+                                  style: TextStyle(fontSize: 12, color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: const Locale('it', 'IT'),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: Image.asset('assets/flags/it.gif',
+                                    width: 22, height: 15, fit: BoxFit.cover),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('Italiano (IT)',
+                                  style: TextStyle(fontSize: 12, color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2D2D2D),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFF3F3F46)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(2),
+                              child: Image.asset(
+                                ref.watch(localeProvider).languageCode == 'en'
+                                    ? 'assets/flags/uk.gif'
+                                    : ref.watch(localeProvider).languageCode == 'de'
+                                        ? 'assets/flags/de.gif'
+                                        : ref.watch(localeProvider).languageCode == 'es'
+                                            ? 'assets/flags/es.gif'
+                                            : ref.watch(localeProvider).languageCode == 'fr'
+                                                ? 'assets/flags/fr.gif'
+                                                : ref.watch(localeProvider).languageCode == 'it'
+                                                    ? 'assets/flags/it.gif'
+                                                    : 'assets/flags/br.gif',
+                                width: 20,
+                                height: 14,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              ref.watch(localeProvider).languageCode.toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFFCCCCCC)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     OutlinedButton.icon(
                       onPressed: () => notifier.limparTerminal(),
                       icon: const Icon(Icons.cleaning_services_outlined, size: 16),
-                      label: const Text('Limpar Console'),
+                      label: Text(l10n?.limparConsole ?? 'Limpar Console'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFCCCCCC),
                         side: const BorderSide(color: Color(0xFF3F3F46)),
@@ -478,7 +706,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         );
                       },
                       icon: const Icon(Icons.info_outline, size: 16),
-                      label: const Text('Sobre'),
+                      label: Text(l10n?.sobre ?? 'Sobre'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF0078D4),
                         side: const BorderSide(color: Color(0xFF0078D4)),
@@ -556,7 +784,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Text(
                         state.statusOperacao.isNotEmpty
                             ? state.statusOperacao
-                            : 'Aguardando ação do usuário...',
+                            : (l10n?.aguardandoAcao ?? 'Aguardando ação do usuário...'),
                         style: TextStyle(
                           fontSize: 12,
                           color: state.statusOperacao.contains('Erro')
@@ -583,9 +811,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                               )
                             : const Icon(Icons.unarchive, size: 20),
-                        label: const Text(
-                          'DESCOMPACTAR AGORA',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        label: Text(
+                          l10n?.descompactarAgora ?? 'DESCOMPACTAR AGORA',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF107C41),
@@ -612,9 +840,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                               )
                             : const Icon(Icons.copy, size: 20),
-                        label: const Text(
-                          'INICIAR CÓPIA',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        label: Text(
+                          l10n?.iniciarCopia ?? 'INICIAR CÓPIA',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0078D4),
@@ -641,9 +869,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                               )
                             : const Icon(Icons.drive_file_move_outlined, size: 20),
-                        label: const Text(
-                          'MOVER ARQUIVOS',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        label: Text(
+                          l10n?.moverArquivos ?? 'MOVER ARQUIVOS',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFD13438),
@@ -669,9 +897,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                               )
                             : const Icon(Icons.auto_awesome_mosaic, size: 20),
-                        label: const Text(
-                          'ORGANIZAR PASTA',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        label: Text(
+                          l10n?.organizarPasta ?? 'ORGANIZAR PASTA',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0078D4),
@@ -685,9 +913,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ? ElevatedButton.icon(
                               onPressed: () => notifier.cancelarVarredura(),
                               icon: const Icon(Icons.stop_circle_outlined, size: 20),
-                              label: const Text(
-                                'INTERROMPER BUSCA',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              label: Text(
+                                l10n?.interromperBusca ?? 'INTERROMPER BUSCA',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.redAccent,
@@ -722,8 +950,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       size: 20),
                               label: Text(
                                 state.searchMode == SearchMode.duplicates
-                                    ? 'ESCANEAR DUPLICADOS'
-                                    : 'LOCALIZAR ARQUIVOS',
+                                    ? (l10n?.escanearDuplicados ?? 'ESCANEAR DUPLICADOS')
+                                    : (l10n?.localizarArquivos ?? 'LOCALIZAR ARQUIVOS'),
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                               style: ElevatedButton.styleFrom(
@@ -760,7 +988,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       width: double.infinity,
                       child: SelectableText(
                         state.logsTerminal.isEmpty
-                            ? 'Terminal pronto. Módulo operacional pronto.'
+                            ? (l10n?.terminalPronto ?? 'Terminal pronto. Módulo operacional pronto.')
                             : state.logsTerminal,
                         style: TextStyle(
                           fontFamily: 'Consolas',
@@ -810,10 +1038,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     CommanderState state,
     CommanderNotifier notifier,
   ) {
+    final l10n = AppLocalizations.of(context);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // CARD 1: ORIGEM DOS ARQUIVOS
+        // ORIGEM DOS ARQUIVOS
         Expanded(
           child: Card(
             elevation: 2,
@@ -835,7 +1065,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               color: Color(0xFF0078D4), size: 20),
                           const SizedBox(width: 8),
                           Text(
-                            'Card 1 (ORIGEM) [${state.arquivosOrigem.length}]',
+                            '${l10n?.origem ?? 'ORIGEM'} [${state.arquivosOrigem.length}]',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
@@ -847,7 +1077,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ElevatedButton.icon(
                         onPressed: _adicionarArquivos,
                         icon: const Icon(Icons.add, size: 16),
-                        label: const Text('(+) Adicionar Arquivos'),
+                        label: Text(l10n?.adicionarArquivos ?? '(+) Adicionar Arquivos'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0078D4),
                           foregroundColor: Colors.white,
@@ -863,14 +1093,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.archive_outlined,
+                              children: [
+                                const Icon(Icons.archive_outlined,
                                     size: 40, color: Color(0xFF555555)),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 Text(
-                                  'Nenhum arquivo adicionado à fila.\nClique em "(+) Adicionar Arquivos" (.zip, .rar, .7z)',
+                                  l10n?.nenhumArquivoDescompactar ??
+                                      "Nenhum arquivo adicionado à fila.\nClique em '(+) Adicionar Arquivos' (.zip, .rar, .7z)",
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Color(0xFF888888),
                                     fontSize: 12,
                                   ),
@@ -922,7 +1153,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(width: 16),
 
-        // CARD 2: DESTINO DAS PASTAS
+        // DESTINO DAS PASTAS
         Expanded(
           child: Card(
             elevation: 2,
@@ -939,13 +1170,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
-                        children: const [
-                          Icon(Icons.folder_open,
+                        children: [
+                          const Icon(Icons.folder_open,
                               color: Color(0xFF0078D4), size: 20),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
-                            'Card 2 (DESTINO)',
-                            style: TextStyle(
+                            l10n?.destino ?? 'DESTINO',
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                               color: Colors.white,
@@ -958,7 +1189,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           OutlinedButton.icon(
                             onPressed: _selecionarPastaDestino,
                             icon: const Icon(Icons.create_new_folder_outlined, size: 16),
-                            label: const Text('Selecionar Pasta'),
+                            label: Text(l10n?.selecionarPasta ?? 'Selecionar Pasta'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF0078D4),
                               side: const BorderSide(color: Color(0xFF0078D4)),
@@ -966,20 +1197,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   horizontal: 10, vertical: 8),
                             ),
                           ),
-                          if (state.caminhoGoogleDriveDetectado != null) ...[
-                            const SizedBox(width: 6),
-                            OutlinedButton.icon(
-                              onPressed: () => notifier.setDestinoGoogleDrive(),
-                              icon: const Icon(Icons.cloud_queue, size: 16),
-                              label: const Text('Google Drive'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF4EC9B0),
-                                side: const BorderSide(color: Color(0xFF4EC9B0)),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 8),
-                              ),
+                          const SizedBox(width: 6),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                _selecionarDestinoGoogleDrive(context, state, notifier),
+                            icon: const Icon(Icons.cloud_queue, size: 16),
+                            label: Text(l10n?.googleDrive ?? 'Google Drive'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF4EC9B0),
+                              side: const BorderSide(color: Color(0xFF4EC9B0)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ],
@@ -995,20 +1225,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Caminho de Destino:',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF888888)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              l10n?.caminhoDestino ?? 'Caminho de Destino:',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF888888)),
+                            ),
+                            if (state.diretorioDestino != null &&
+                                state.diretorioDestino!.isNotEmpty)
+                              Tooltip(
+                                message: l10n?.limparDestino ?? 'Limpar destino',
+                                child: InkWell(
+                                  onTap: () => notifier.setDiretorioDestino(null),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(2.0),
+                                    child: Icon(Icons.close,
+                                        color: Colors.redAccent, size: 16),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         SelectableText(
-                          state.diretorioDestino ??
-                              'Nenhum diretório selecionado. Clique em "Selecionar Pasta".',
+                          (state.diretorioDestino != null && state.diretorioDestino!.isNotEmpty)
+                              ? state.diretorioDestino!
+                              : (l10n?.nenhumDiretorioSelecionado ?? 'Nenhum diretório selecionado. Clique em "Selecionar Pasta".'),
                           style: TextStyle(
                             fontSize: 13,
-                            color: state.diretorioDestino != null
+                            color: (state.diretorioDestino != null && state.diretorioDestino!.isNotEmpty)
                                 ? const Color(0xFF4EC9B0)
                                 : const Color(0xFF888888),
                             fontFamily: 'Consolas',
@@ -1034,10 +1284,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             if (val != null) notifier.toggleCriarSubpasta(val);
                           },
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Criar pasta com o nome do arquivo para cada extração',
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            l10n?.criarSubpastaExtracao ?? 'Criar pasta com o nome do arquivo para cada extração',
+                            style: const TextStyle(fontSize: 12, color: Colors.white),
                           ),
                         ),
                       ],
@@ -1057,10 +1307,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     CommanderState state,
     CommanderNotifier notifier,
   ) {
+    final l10n = AppLocalizations.of(context);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // CARD 1: ORIGEM DOS ITENS
+        // ORIGEM DOS ITENS
         Expanded(
           child: Card(
             elevation: 2,
@@ -1082,7 +1334,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               color: Color(0xFF0078D4), size: 20),
                           const SizedBox(width: 8),
                           Text(
-                            'Card 1 (ORIGEM) [${state.itensCopiarOrigem.length}]',
+                            '${l10n?.origem ?? 'ORIGEM'} [${state.itensCopiarOrigem.length}]',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
@@ -1096,7 +1348,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ElevatedButton.icon(
                             onPressed: _adicionarArquivosCopiar,
                             icon: const Icon(Icons.insert_drive_file, size: 14),
-                            label: const Text('(+) Arquivos'),
+                            label: Text(l10n?.adicionarArquivos ?? '(+) Arquivos'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0078D4),
                               foregroundColor: Colors.white,
@@ -1108,7 +1360,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ElevatedButton.icon(
                             onPressed: _adicionarPastaCopiar,
                             icon: const Icon(Icons.folder, size: 14),
-                            label: const Text('(+) Pasta'),
+                            label: Text(l10n?.adicionarPasta ?? '(+) Pasta'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0078D4),
                               foregroundColor: Colors.white,
@@ -1118,17 +1370,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           const SizedBox(width: 6),
                           OutlinedButton.icon(
-                            onPressed: () async {
-                              final ok = await notifier.adicionarOrigemGoogleDrive();
-                              if (!ok && context.mounted) {
-                                showDialog(
-                                  context: context,
-                                  builder: (_) => const GoogleDriveDialog(),
-                                );
-                              }
-                            },
+                            onPressed: () =>
+                                _selecionarOrigemGoogleDrive(context, state, notifier),
                             icon: const Icon(Icons.cloud_queue, size: 14),
-                            label: const Text('(+) Google Drive'),
+                            label: Text(l10n?.adicionarGoogleDrive ?? '(+) Google Drive'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF4EC9B0),
                               side: const BorderSide(color: Color(0xFF4EC9B0)),
@@ -1146,14 +1391,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.content_copy,
+                              children: [
+                                const Icon(Icons.content_copy,
                                     size: 40, color: Color(0xFF555555)),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 Text(
-                                  'Nenhum item adicionado para cópia.\nUtilize "(+) Arquivos", "(+) Pasta" ou "(+) Google Drive".',
+                                  l10n?.nenhumItemCopiar ??
+                                      "Nenhum item adicionado para cópia.\nUtilize '(+) Arquivos', '(+) Pasta' ou '(+) Google Drive'.",
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Color(0xFF888888),
                                     fontSize: 12,
                                   ),
@@ -1212,7 +1458,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(width: 16),
 
-        // CARD 2: DESTINO DA CÓPIA E REGRAS
+        // DESTINO DA CÓPIA E REGRAS
         Expanded(
           child: Card(
             elevation: 2,
@@ -1229,13 +1475,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
-                        children: const [
-                          Icon(Icons.folder_open,
+                        children: [
+                          const Icon(Icons.folder_open,
                               color: Color(0xFF0078D4), size: 20),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
-                            'Card 2 (DESTINO)',
-                            style: TextStyle(
+                            l10n?.destino ?? 'DESTINO',
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                               color: Colors.white,
@@ -1248,7 +1494,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           OutlinedButton.icon(
                             onPressed: _selecionarDestinoCopiar,
                             icon: const Icon(Icons.create_new_folder_outlined, size: 16),
-                            label: const Text('Selecionar Pasta'),
+                            label: Text(l10n?.selecionarPasta ?? 'Selecionar Pasta'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF0078D4),
                               side: const BorderSide(color: Color(0xFF0078D4)),
@@ -1258,17 +1504,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           const SizedBox(width: 6),
                           OutlinedButton.icon(
-                            onPressed: () async {
-                              final ok = await notifier.setDestinoGoogleDrive();
-                              if (!ok && context.mounted) {
-                                showDialog(
-                                  context: context,
-                                  builder: (_) => const GoogleDriveDialog(),
-                                );
-                              }
-                            },
+                            onPressed: () =>
+                                _selecionarDestinoGoogleDrive(context, state, notifier),
                             icon: const Icon(Icons.cloud_queue, size: 16),
-                            label: const Text('Google Drive'),
+                            label: Text(l10n?.googleDrive ?? 'Google Drive'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF4EC9B0),
                               side: const BorderSide(color: Color(0xFF4EC9B0)),
@@ -1291,20 +1530,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Caminho de Destino:',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF888888)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              l10n?.caminhoDestino ?? 'Caminho de Destino:',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF888888)),
+                            ),
+                            if (state.destinoCopiar != null &&
+                                state.destinoCopiar!.isNotEmpty)
+                              Tooltip(
+                                message: l10n?.limparDestino ?? 'Limpar destino',
+                                child: InkWell(
+                                  onTap: () => notifier.setDestinoCopiar(null),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(2.0),
+                                    child: Icon(Icons.close,
+                                        color: Colors.redAccent, size: 16),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         SelectableText(
-                          state.destinoCopiar ??
-                              'Nenhum diretório selecionado. Clique em "Selecionar Pasta".',
+                          (state.destinoCopiar != null && state.destinoCopiar!.isNotEmpty)
+                              ? state.destinoCopiar!
+                              : (l10n?.nenhumDiretorioSelecionado ?? 'Nenhum diretório selecionado. Clique em "Selecionar Pasta".'),
                           style: TextStyle(
                             fontSize: 13,
-                            color: state.destinoCopiar != null
+                            color: (state.destinoCopiar != null && state.destinoCopiar!.isNotEmpty)
                                 ? const Color(0xFF4EC9B0)
                                 : const Color(0xFF888888),
                             fontFamily: 'Consolas',
@@ -1330,10 +1589,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             if (val != null) notifier.toggleOrganizarAposTransferir(val);
                           },
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Organizar automaticamente por categorias no destino',
-                            style: TextStyle(fontSize: 11, color: Colors.white),
+                            l10n?.organizarAposTransferir ?? 'Organizar automaticamente por categorias no destino',
+                            style: const TextStyle(fontSize: 11, color: Colors.white),
                           ),
                         ),
                       ],
@@ -1356,19 +1615,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             if (val != null) notifier.toggleAuditarSha256(val);
                           },
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Auditar integridade de transferência (Hash SHA-256)',
-                            style: TextStyle(fontSize: 11, color: Colors.white),
+                            l10n?.auditarSha256 ?? 'Auditar integridade de transferência (Hash SHA-256)',
+                            style: const TextStyle(fontSize: 11, color: Colors.white),
                           ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'REGRA DE COLISÃO / DUPLICADOS:',
-                    style: TextStyle(
+                  Text(
+                    l10n?.regraColisaoDuplicados ?? 'REGRA DE COLISÃO / DUPLICADOS:',
+                    style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFCCCCCC),
@@ -1383,18 +1642,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                     dropdownColor: const Color(0xFF2D2D2D),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: 'substituir',
-                        child: Text('Substituir existentes (Sobrescrever)'),
+                        child: Text(l10n?.substituirExistentes ?? 'Substituir existentes (Sobrescrever)'),
                       ),
                       DropdownMenuItem(
                         value: 'pular',
-                        child: Text('Pular duplicados (Ignorar se existir)'),
+                        child: Text(l10n?.pularDuplicados ?? 'Pular duplicados (Ignorar se existir)'),
                       ),
                       DropdownMenuItem(
                         value: 'manter',
-                        child: Text('Manter ambos (Criar cópia renomeada)'),
+                        child: Text(l10n?.manterAmbos ?? 'Manter ambos (Criar cópia renomeada)'),
                       ),
                     ],
                     onChanged: (val) {
@@ -1417,10 +1676,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     CommanderState state,
     CommanderNotifier notifier,
   ) {
+    final l10n = AppLocalizations.of(context);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // CARD 1: ORIGEM DOS ITENS A MOVER
+        // ORIGEM DOS ITENS A MOVER
         Expanded(
           child: Card(
             elevation: 2,
@@ -1442,7 +1703,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               color: Color(0xFFD13438), size: 20),
                           const SizedBox(width: 8),
                           Text(
-                            'Card 1 (ORIGEM) [${state.itensMoverOrigem.length}]',
+                            '${l10n?.origem ?? 'ORIGEM'} [${state.itensMoverOrigem.length}]',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
@@ -1456,7 +1717,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ElevatedButton.icon(
                             onPressed: _adicionarArquivosMover,
                             icon: const Icon(Icons.insert_drive_file, size: 14),
-                            label: const Text('(+) Arquivos'),
+                            label: Text(l10n?.adicionarArquivos ?? '(+) Arquivos'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD13438),
                               foregroundColor: Colors.white,
@@ -1468,7 +1729,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ElevatedButton.icon(
                             onPressed: _adicionarPastaMover,
                             icon: const Icon(Icons.folder, size: 14),
-                            label: const Text('(+) Pasta'),
+                            label: Text(l10n?.adicionarPasta ?? '(+) Pasta'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD13438),
                               foregroundColor: Colors.white,
@@ -1478,17 +1739,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           const SizedBox(width: 6),
                           OutlinedButton.icon(
-                            onPressed: () async {
-                              final ok = await notifier.adicionarOrigemGoogleDrive();
-                              if (!ok && context.mounted) {
-                                showDialog(
-                                  context: context,
-                                  builder: (_) => const GoogleDriveDialog(),
-                                );
-                              }
-                            },
+                            onPressed: () =>
+                                _selecionarOrigemGoogleDrive(context, state, notifier),
                             icon: const Icon(Icons.cloud_queue, size: 14),
-                            label: const Text('(+) Google Drive'),
+                            label: Text(l10n?.adicionarGoogleDrive ?? '(+) Google Drive'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF4EC9B0),
                               side: const BorderSide(color: Color(0xFF4EC9B0)),
@@ -1506,14 +1760,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.drive_file_move_outlined,
+                              children: [
+                                const Icon(Icons.drive_file_move_outlined,
                                     size: 40, color: Color(0xFF555555)),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 Text(
-                                  'Nenhum item adicionado para movimentação.\nUtilize "(+) Arquivos", "(+) Pasta" ou "(+) Google Drive".',
+                                  l10n?.nenhumItemMover ??
+                                      "Nenhum item adicionado para movimentação.\nUtilize '(+) Arquivos', '(+) Pasta' ou '(+) Google Drive'.",
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Color(0xFF888888),
                                     fontSize: 12,
                                   ),
@@ -1572,7 +1827,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(width: 16),
 
-        // CARD 2: DESTINO DA MOVIMENTAÇÃO
+        // DESTINO DA MOVIMENTAÇÃO
         Expanded(
           child: Card(
             elevation: 2,
@@ -1589,13 +1844,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
-                        children: const [
-                          Icon(Icons.folder_open,
+                        children: [
+                          const Icon(Icons.folder_open,
                               color: Color(0xFFD13438), size: 20),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
-                            'Card 2 (DESTINO)',
-                            style: TextStyle(
+                            l10n?.destino ?? 'DESTINO',
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                               color: Colors.white,
@@ -1608,7 +1863,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           OutlinedButton.icon(
                             onPressed: _selecionarDestinoMover,
                             icon: const Icon(Icons.create_new_folder_outlined, size: 16),
-                            label: const Text('Selecionar Pasta'),
+                            label: Text(l10n?.selecionarPasta ?? 'Selecionar Pasta'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFD13438),
                               side: const BorderSide(color: Color(0xFFD13438)),
@@ -1618,17 +1873,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           const SizedBox(width: 6),
                           OutlinedButton.icon(
-                            onPressed: () async {
-                              final ok = await notifier.setDestinoGoogleDrive();
-                              if (!ok && context.mounted) {
-                                showDialog(
-                                  context: context,
-                                  builder: (_) => const GoogleDriveDialog(),
-                                );
-                              }
-                            },
+                            onPressed: () =>
+                                _selecionarDestinoGoogleDrive(context, state, notifier),
                             icon: const Icon(Icons.cloud_queue, size: 16),
-                            label: const Text('Google Drive'),
+                            label: Text(l10n?.googleDrive ?? 'Google Drive'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF4EC9B0),
                               side: const BorderSide(color: Color(0xFF4EC9B0)),
@@ -1651,20 +1899,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Caminho de Destino:',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF888888)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              l10n?.caminhoDestino ?? 'Caminho de Destino:',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF888888)),
+                            ),
+                            if (state.destinoMover != null &&
+                                state.destinoMover!.isNotEmpty)
+                              Tooltip(
+                                message: l10n?.limparDestino ?? 'Limpar destino',
+                                child: InkWell(
+                                  onTap: () => notifier.setDestinoMover(null),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(2.0),
+                                    child: Icon(Icons.close,
+                                        color: Colors.redAccent, size: 16),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         SelectableText(
-                          state.destinoMover ??
-                              'Nenhum diretório selecionado. Clique em "Selecionar Pasta".',
+                          (state.destinoMover != null && state.destinoMover!.isNotEmpty)
+                              ? state.destinoMover!
+                              : (l10n?.nenhumDiretorioSelecionado ?? 'Nenhum diretório selecionado. Clique em "Selecionar Pasta".'),
                           style: TextStyle(
                             fontSize: 13,
-                            color: state.destinoMover != null
+                            color: (state.destinoMover != null && state.destinoMover!.isNotEmpty)
                                 ? const Color(0xFF4EC9B0)
                                 : const Color(0xFF888888),
                             fontFamily: 'Consolas',
@@ -1690,10 +1958,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             if (val != null) notifier.toggleOrganizarAposTransferir(val);
                           },
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Organizar automaticamente por categorias no destino',
-                            style: TextStyle(fontSize: 11, color: Colors.white),
+                            l10n?.organizarAposTransferir ?? 'Organizar automaticamente por categorias no destino',
+                            style: const TextStyle(fontSize: 11, color: Colors.white),
                           ),
                         ),
                       ],
@@ -1716,10 +1984,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             if (val != null) notifier.toggleAuditarSha256(val);
                           },
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Auditar integridade de transferência (Hash SHA-256)',
-                            style: TextStyle(fontSize: 11, color: Colors.white),
+                            l10n?.auditarSha256 ?? 'Auditar integridade de transferência (Hash SHA-256)',
+                            style: const TextStyle(fontSize: 11, color: Colors.white),
                           ),
                         ),
                       ],
@@ -1742,10 +2010,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             if (val != null) notifier.toggleSobrescreverMover(val);
                           },
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Sobrescrever arquivos se já existirem no destino',
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            l10n?.sobrescreverExistentes ?? 'Sobrescrever arquivos se já existirem no destino',
+                            style: const TextStyle(fontSize: 12, color: Colors.white),
                           ),
                         ),
                       ],
@@ -1765,6 +2033,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     CommanderState state,
     CommanderNotifier notifier,
   ) {
+    final l10n = AppLocalizations.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1785,20 +2055,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'DIRETÓRIO RAIZ A ORGANIZAR:',
-                        style: TextStyle(
+                      Text(
+                        l10n?.diretorioRaiz ?? 'DIRETÓRIO RAIZ A ORGANIZAR:',
+                        style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF888888)),
                       ),
                       const SizedBox(height: 2),
                       SelectableText(
-                        state.diretorioOrganizar ??
-                            'Nenhum diretório selecionado. Clique em "Buscar Pasta".',
+                        (state.diretorioOrganizar != null && state.diretorioOrganizar!.isNotEmpty)
+                            ? state.diretorioOrganizar!
+                            : (l10n?.nenhumDiretorioSelecionado ?? 'Nenhum diretório selecionado. Clique em "Buscar Pasta".'),
                         style: TextStyle(
                           fontSize: 13,
-                          color: state.diretorioOrganizar != null
+                          color: (state.diretorioOrganizar != null && state.diretorioOrganizar!.isNotEmpty)
                               ? const Color(0xFF4EC9B0)
                               : const Color(0xFF888888),
                           fontFamily: 'Consolas',
@@ -1807,10 +2078,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                 ),
+                if (state.diretorioOrganizar != null &&
+                    state.diretorioOrganizar!.isNotEmpty) ...[
+                  IconButton(
+                    onPressed: () => notifier.setDiretorioOrganizar(null),
+                    icon: const Icon(Icons.close, color: Colors.redAccent, size: 20),
+                    tooltip: 'Limpar Pasta',
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 ElevatedButton.icon(
                   onPressed: _selecionarDiretorioOrganizar,
                   icon: const Icon(Icons.search, size: 16),
-                  label: const Text('Buscar Pasta'),
+                  label: Text(l10n?.buscarPasta ?? 'Buscar Pasta'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0078D4),
                     foregroundColor: Colors.white,
@@ -1836,9 +2116,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'CATEGORIAS E REGRAS DE ORGANIZAÇÃO',
-                    style: TextStyle(
+                  Text(
+                    l10n?.categoriasEregras ?? 'CATEGORIAS E REGRAS DE ORGANIZAÇÃO',
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -1856,7 +2136,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             children: CommanderState.categoriasDefinidas.keys
                                 .map((categoria) {
                               final isSelected =
-                                  state.categoriasSelecionadas[categoria] ?? true;
+                                  state.categoriasSelecionadas[categoria] ?? false;
                               return SizedBox(
                                 width: 280,
                                 child: Container(
@@ -1886,7 +2166,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Text(
-                                              categoria,
+                                              categoria == 'Documentos PDF'
+                                                  ? (l10n?.documentosPdf ?? categoria)
+                                                  : categoria == 'Word Doc'
+                                                      ? (l10n?.wordDoc ?? categoria)
+                                                      : categoria == 'Planilhas'
+                                                          ? (l10n?.planilhas ?? categoria)
+                                                          : categoria == 'Músicas'
+                                                              ? (l10n?.musicas ?? categoria)
+                                                              : categoria == 'Vídeos'
+                                                                  ? (l10n?.videos ?? categoria)
+                                                                  : categoria == 'Imagens'
+                                                                      ? (l10n?.imagens ?? categoria)
+                                                                      : categoria == 'Arquivos Compactados'
+                                                                          ? (l10n?.arquivosCompactados ?? categoria)
+                                                                          : categoria == 'Instaladores'
+                                                                              ? (l10n?.instaladores ?? categoria)
+                                                                              : categoria,
                                               style: const TextStyle(
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.bold,
@@ -1916,9 +2212,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           // Regra Personalizada
                           Row(
                             children: [
-                              const Text(
-                                'Regra Personalizada:',
-                                style: TextStyle(
+                              Text(
+                                l10n?.regraPersonalizada ?? 'Regra Personalizada:',
+                                style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white),
@@ -1953,10 +2249,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     notifier.setCustomRule(
                                         _extController.text, v);
                                   },
-                                  decoration: const InputDecoration(
-                                    hintText: 'Nome da Pasta Ex: Texturas DDS',
+                                  decoration: InputDecoration(
+                                    hintText: l10n?.hintNomePasta ?? 'Nome da Pasta Ex: Texturas DDS',
                                     isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(
+                                    contentPadding: const EdgeInsets.symmetric(
                                         horizontal: 10, vertical: 8),
                                   ),
                                   style: const TextStyle(fontSize: 12),
@@ -1987,10 +2283,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             }
                           },
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Incluir arquivos dentro de subpastas (Recursivo)',
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            l10n?.incluirSubpastas ?? 'Incluir arquivos dentro de subpastas (Recursivo)',
+                            style: const TextStyle(fontSize: 12, color: Colors.white),
                           ),
                         ),
                       ],
@@ -2010,6 +2306,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     CommanderState state,
     CommanderNotifier notifier,
   ) {
+    final l10n = AppLocalizations.of(context);
     final isDuplicatesMode = state.searchMode == SearchMode.duplicates;
 
     return Column(
@@ -2031,16 +2328,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Row(
                   children: [
                     SegmentedButton<SearchMode>(
-                      segments: const [
+                      segments: [
                         ButtonSegment(
                           value: SearchMode.duplicates,
-                          label: Text('Duplicados (SHA-256)', style: TextStyle(fontSize: 12)),
-                          icon: Icon(Icons.copy_outlined, size: 16),
+                          label: Text(l10n?.duplicadosSha256 ?? 'Duplicados (SHA-256)', style: const TextStyle(fontSize: 12)),
+                          icon: const Icon(Icons.copy_outlined, size: 16),
                         ),
                         ButtonSegment(
                           value: SearchMode.fileSearch,
-                          label: Text('Localizar Arquivos', style: TextStyle(fontSize: 12)),
-                          icon: Icon(Icons.search_outlined, size: 16),
+                          label: Text(l10n?.localizarArquivos ?? 'Localizar Arquivos', style: const TextStyle(fontSize: 12)),
+                          icon: const Icon(Icons.search_outlined, size: 16),
                         ),
                       ],
                       selected: {state.searchMode},
@@ -2061,7 +2358,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     OutlinedButton.icon(
                       onPressed: _selecionarDiretorioBusca,
                       icon: const Icon(Icons.add_location_alt_outlined, size: 16),
-                      label: const Text('+ Adicionar Pasta'),
+                      label: Text(l10n?.adicionarPastaBusca ?? '+ Adicionar Pasta'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF0078D4),
                         side: const BorderSide(color: Color(0xFF0078D4)),
@@ -2089,9 +2386,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             if (val != null) notifier.toggleIncludeSubfolders(val);
                           },
                         ),
-                        const Text(
-                          'Incluir subpastas (Recursivo)',
-                          style: TextStyle(fontSize: 12, color: Colors.white),
+                        Text(
+                          l10n?.incluirSubpastas ?? 'Incluir subpastas (Recursivo)',
+                          style: const TextStyle(fontSize: 12, color: Colors.white),
                         ),
                       ],
                     ),
@@ -2143,13 +2440,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                         ),
                         dropdownColor: const Color(0xFF2D2D2D),
-                        items: const [
-                          DropdownMenuItem(value: 'todos', child: Text('Todas Mídias', style: TextStyle(fontSize: 11))),
-                          DropdownMenuItem(value: 'imagens', child: Text('Imagens', style: TextStyle(fontSize: 11))),
-                          DropdownMenuItem(value: 'videos', child: Text('Vídeos', style: TextStyle(fontSize: 11))),
-                          DropdownMenuItem(value: 'audios', child: Text('Áudios', style: TextStyle(fontSize: 11))),
-                          DropdownMenuItem(value: 'textos', child: Text('Texto/Docs', style: TextStyle(fontSize: 11))),
-                          DropdownMenuItem(value: 'instaladores', child: Text('Instaladores', style: TextStyle(fontSize: 11))),
+                        items: [
+                          DropdownMenuItem(value: 'todos', child: Text(l10n?.todasMidias ?? 'Todas Mídias', style: const TextStyle(fontSize: 11))),
+                          DropdownMenuItem(value: 'imagens', child: Text(l10n?.imagens ?? 'Imagens', style: const TextStyle(fontSize: 11))),
+                          DropdownMenuItem(value: 'videos', child: Text(l10n?.videos ?? 'Vídeos', style: const TextStyle(fontSize: 11))),
+                          DropdownMenuItem(value: 'audios', child: Text(l10n?.musicas ?? 'Áudios', style: const TextStyle(fontSize: 11))),
+                          DropdownMenuItem(value: 'textos', child: const Text('Texto/Docs', style: TextStyle(fontSize: 11))),
+                          DropdownMenuItem(value: 'instaladores', child: Text(l10n?.instaladores ?? 'Instaladores', style: const TextStyle(fontSize: 11))),
                         ],
                         onChanged: (val) {
                           if (val != null) notifier.setCategoriaFiltro(val);
@@ -2163,10 +2460,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: TextField(
                           onChanged: (v) => notifier.setSearchFileNameQuery(v),
                           style: const TextStyle(fontSize: 12, color: Colors.white),
-                          decoration: const InputDecoration(
-                            hintText: 'Buscar por nome ou extensão (ex: .log)...',
+                          decoration: InputDecoration(
+                            hintText: l10n?.hintBuscarNomeExtensao ?? 'Buscar por nome ou extensão (ex: .log)...',
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                           ),
                         ),
                       ),
@@ -2180,12 +2477,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                           ),
                           dropdownColor: const Color(0xFF2D2D2D),
-                          items: const [
-                            DropdownMenuItem(value: 'Todos', child: Text('Qualquer Tamanho', style: TextStyle(fontSize: 11))),
-                            DropdownMenuItem(value: '< 10 MB', child: Text('< 10 MB', style: TextStyle(fontSize: 11))),
-                            DropdownMenuItem(value: '10-100 MB', child: Text('10-100 MB', style: TextStyle(fontSize: 11))),
-                            DropdownMenuItem(value: '100 MB - 1 GB', child: Text('100 MB - 1 GB', style: TextStyle(fontSize: 11))),
-                            DropdownMenuItem(value: '> 1 GB', child: Text('> 1 GB', style: TextStyle(fontSize: 11))),
+                          items: [
+                            DropdownMenuItem(value: 'Todos', child: Text(l10n?.qualquerTamanho ?? 'Qualquer Tamanho', style: const TextStyle(fontSize: 11))),
+                            const DropdownMenuItem(value: '< 10 MB', child: Text('< 10 MB', style: TextStyle(fontSize: 11))),
+                            const DropdownMenuItem(value: '10-100 MB', child: Text('10-100 MB', style: TextStyle(fontSize: 11))),
+                            const DropdownMenuItem(value: '100 MB - 1 GB', child: Text('100 MB - 1 GB', style: TextStyle(fontSize: 11))),
+                            const DropdownMenuItem(value: '> 1 GB', child: Text('> 1 GB', style: TextStyle(fontSize: 11))),
                           ],
                           onChanged: (val) {
                             if (val != null) notifier.setSearchSizeFilter(val);
@@ -2216,6 +2513,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     CommanderState state,
     CommanderNotifier notifier,
   ) {
+    final l10n = AppLocalizations.of(context);
+
     if (state.foundFiles.isEmpty) {
       return Card(
         elevation: 2,
@@ -2226,20 +2525,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.search_off_outlined, size: 48, color: Color(0xFF555555)),
-              SizedBox(height: 12),
+            children: [
+              const Icon(Icons.search_off_outlined, size: 48, color: Color(0xFF555555)),
+              const SizedBox(height: 12),
               Text(
-                'Nenhum arquivo localizado.',
-                style: TextStyle(
+                l10n?.nenhumArquivoLocalizado ?? 'Nenhum arquivo localizado.',
+                style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: Colors.white),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
-                'Adicione uma ou mais pastas e clique em "LOCALIZAR ARQUIVOS".',
-                style: TextStyle(color: Color(0xFF888888), fontSize: 12),
+                l10n?.orientacaoLocalizarArquivos ??
+                    'Adicione uma ou mais pastas e clique em "LOCALIZAR ARQUIVOS".',
+                style: const TextStyle(color: Color(0xFF888888), fontSize: 12),
               ),
             ],
           ),
@@ -2353,6 +2653,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     CommanderState state,
     CommanderNotifier notifier,
   ) {
+    final l10n = AppLocalizations.of(context);
+
     if (state.gruposConflito.isEmpty) {
       return Card(
         elevation: 2,
@@ -2363,21 +2665,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.find_in_page_outlined,
+            children: [
+              const Icon(Icons.find_in_page_outlined,
                   size: 48, color: Color(0xFF555555)),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Text(
-                'Nenhum conflito ou arquivo duplicado detectado.',
-                style: TextStyle(
+                l10n?.nenhumConflitoDetectado ??
+                    'Nenhum conflito ou arquivo duplicado detectado.',
+                style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: Colors.white),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
-                'Adicione uma ou mais pastas e clique em "ESCANEAR DUPLICADOS".',
-                style: TextStyle(color: Color(0xFF888888), fontSize: 12),
+                l10n?.orientacaoEscaneanarDuplicados ??
+                    'Adicione uma ou mais pastas e clique em "ESCANEAR DUPLICADOS".',
+                style: const TextStyle(color: Color(0xFF888888), fontSize: 12),
               ),
             ],
           ),
