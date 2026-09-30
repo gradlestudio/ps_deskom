@@ -10,7 +10,8 @@ enum AppEdition {
   devBas('DEV-BAS'),
   devPro('DEV-PRO'),
   devMax('DEV-MAX'),
-  devPj('DEV-PJ');
+  devPj('DEV-PJ'),
+  master('MASTER');
 
   final String code;
   const AppEdition(this.code);
@@ -31,6 +32,9 @@ class LicenseService {
   }) : _powerShellService = powerShellService ?? PowerShellService();
 
   Future<String> obterHwid() async {
+    const String envEdition = String.fromEnvironment('APP_EDITION', defaultValue: '');
+    final String editionCode = envEdition.isNotEmpty ? envEdition : edicaoAtual.code;
+
     try {
       final psScript = '''
 \$uuid = (Get-WmiObject Win32_ComputerSystemProduct -ErrorAction SilentlyContinue).UUID
@@ -48,9 +52,9 @@ Write-Output \$uuid
       final b3 = digest.substring(8, 12);
       final b4 = digest.substring(12, 16);
 
-      return 'DESK-${edicaoAtual.code}-$b1-$b2-$b3-$b4';
+      return 'DESK-$editionCode-$b1-$b2-$b3-$b4';
     } catch (_) {
-      return 'DESK-${edicaoAtual.code}-8849-3921-9941-2026';
+      return 'DESK-$editionCode-8849-3921-9941-2026';
     }
   }
 
@@ -68,6 +72,18 @@ Write-Output \$uuid
 
   Future<Map<String, dynamic>> validarEAtivarChave(
       String chaveInput, String hwid) async {
+    const String envEdition = String.fromEnvironment('APP_EDITION', defaultValue: '');
+    if (envEdition == 'MASTER') {
+      const tipo = 'Licença Master (Admin/Creator)';
+      await _salvarNoPrefs(masterKeyDev, tipo);
+      return {
+        'ativado': true,
+        'tipo': tipo,
+        'isDev': true,
+        'mensagem': 'Licença Master (Admin/Creator) Ativa'
+      };
+    }
+
     final chave = chaveInput.trim().toUpperCase();
 
     if (chave == masterKeyDev) {
@@ -113,6 +129,11 @@ Write-Output \$uuid
   }
 
   Future<Map<String, dynamic>> carregarStatusLicenca(String hwid) async {
+    const String envEdition = String.fromEnvironment('APP_EDITION', defaultValue: '');
+    if (envEdition == 'MASTER') {
+      return {'ativado': true, 'tipo': 'Licença Master (Admin/Creator)', 'isDev': true};
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final chaveSalva = prefs.getString('license_key') ?? '';
 

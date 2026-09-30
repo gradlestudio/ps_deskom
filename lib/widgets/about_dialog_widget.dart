@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/commander_provider.dart';
+import '../views/welcome_view.dart';
 import 'activation_dialog.dart';
 import 'manual_help_dialog.dart';
 
@@ -370,6 +371,20 @@ class _AboutDialogWidgetState extends ConsumerState<AboutDialogWidget> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFCCCCCC),
                     side: const BorderSide(color: Color(0xFF3F3F46)),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const WelcomeView()),
+                    );
+                  },
+                  icon: const Icon(Icons.explore_outlined, size: 14),
+                  label: Text(l10n?.bemVindoTitulo ?? 'Boas-Vindas', style: const TextStyle(fontSize: 11)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0078D4),
+                    side: const BorderSide(color: Color(0xFF0078D4)),
                   ),
                 ),
               ],

@@ -5,9 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:window_manager/window_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/commander_provider.dart';
 import 'providers/locale_provider.dart';
+import 'views/welcome_view.dart';
 import 'widgets/about_dialog_widget.dart';
 import 'widgets/audio_preview_card.dart';
 import 'widgets/google_drive_dialog.dart';
@@ -221,8 +223,51 @@ class PSDesKomApp extends ConsumerWidget {
           hintStyle: const TextStyle(color: Color(0xFF888888)),
         ),
       ),
-      home: const HomeScreen(),
+      home: const AppRootWrapper(),
     );
+  }
+}
+
+class AppRootWrapper extends StatefulWidget {
+  const AppRootWrapper({super.key});
+
+  @override
+  State<AppRootWrapper> createState() => _AppRootWrapperState();
+}
+
+class _AppRootWrapperState extends State<AppRootWrapper> {
+  bool? _hasCompletedOnboarding;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    final completed = prefs.getBool('has_completed_onboarding') ?? false;
+    setState(() {
+      _hasCompletedOnboarding = completed;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_hasCompletedOnboarding == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0D1117),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF0078D4)),
+        ),
+      );
+    }
+
+    if (_hasCompletedOnboarding == true) {
+      return const HomeScreen();
+    } else {
+      return const WelcomeView();
+    }
   }
 }
 
@@ -686,6 +731,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ],
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.explore_outlined, size: 20, color: Color(0xFF4EC9B0)),
+                      tooltip: l10n?.bemVindoTitulo ?? 'Boas-Vindas / Welcome',
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const WelcomeView()),
+                        );
+                      },
                     ),
                     const SizedBox(width: 8),
                     OutlinedButton.icon(
