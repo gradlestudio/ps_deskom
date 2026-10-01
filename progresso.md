@@ -69,7 +69,7 @@
 - [x] Atualização da lógica do Bot de Licenciamento WhatsApp em Node.js (`tools/whatsapp_bot/bot.js`): suporte a administradores autorizados (`ADMIN_NUMBERS`), reconhecimento de envios próprios (`fromMe`), suporte a captura de HWID com SWID via Regex e resposta de **Licença Master (Admin/Creator)** com cota irrestrita.
 - [x] Configuração da infraestrutura de Internacionalização (l10n) do Flutter (`pubspec.yaml`, `l10n.yaml`, `lib/l10n/app_pt.arb`, `lib/l10n/app_en.arb`), gerenciador de estado `localeProvider` (`lib/providers/locale_provider.dart`) com suporte a SharedPreferences e botão de menu suspenso de seleção rápida de idioma (🇧🇷 PT / 🇺🇸 EN) posicionado na TopBar de `lib/main.dart`.
 - [x] Correção e alinhamento de dependências no `pubspec.yaml` (`flutter_riverpod: ^2.5.1`, `file_picker: ^8.0.0`, `window_manager: ^0.3.9`) resolvendo incompatidades das breaking changes das versões major 3.x e 13.x de terceiros.
-- [x] Varredura e substituição completa de strings hardcoded em `lib/main.dart` por getters do `AppLocalizations.of(context)!` abrangendo regras de colisão, categorias do Módulo Organizar, filtros e mensagens de orientation do Módulo Procurar para suporte total à internacionalização em tempo real (Português e Inglês).
+- [x] Varredura e substituição completa de strings hardcoded em `lib/main.dart` por getters do `AppLocalizations.of(context)!` abrangendo regras de colisão, categorias do Módulo Organizar, filtros e mensagens de orientação do Módulo Procurar para suporte total à internacionalização em tempo real (Português e Inglês).
 - [x] Limpeza de opções legadas em `l10n.yaml` e tradução reativa das categorias do Módulo Organizar e mensagens de Empty State dos Módulos Descompactar, Copiar, Mover e Procurar via `AppLocalizations`.
 - [x] Internacionalização integral e irrestrita (Zero Hardcoded Strings): mapeamento de todas as strings do Modal "Sobre" (`AboutDialogWidget`) em `app_pt.arb` e `app_en.arb`, suporte a tradução completa em tempo real para o Inglês de créditos, versão, avisos legais EULA e ações rápidas.
 - [x] Internacionalização integral e abrangente do Modal do Manual (`ManualHelpDialog` em `lib/widgets/manual_help_dialog.dart`): suporte completo a tradução para o Inglês (EN) das 4 abas interativas, títulos de seções, descrições detalhadas de operação e canais oficiais de suporte.
@@ -90,9 +90,12 @@
 - [x] Calibração da primeira interação no Atendente Virtual Grad Bot em `gerenciadorAtendimento.js`: eliminação do alerta de "opção inválida" no primeiro contato, garantia de envio exclusivo do menu inicial de boas-vindas para novos contatos e idioma fixado em Português (+55) ou fallback (Etapa 7.1).
 - [x] Calibração de texto da mensagem inicial do Atendente Virtual Grad (`fluxoAtendimento.js`) com apresentação do "Grad, assistente virtual da Gradle Studio" e fixação irrestrita do fluxo comercial em Português (PT-BR) para todos os nós da árvore (Etapa 7.2).
 - [x] Remoção do cabeçalho estático "Virtual Assistant / Atendente Virtual" do Grad Bot em `fluxoAtendimento.js`, iniciando o diálogo diretamente com a saudação humana do Grad (Etapa 7.3).
+- [x] Implementação do serviço `BotManagerService` (`lib/services/bot_manager_service.dart`) e painel modal `BotControlDialog` (`lib/views/bot_control_dialog.dart`) restritos à Edição Master (`APP_EDITION == 'MASTER'`), permitindo consultar logs (`pm2 logs grad-bot`), listar processos (`pm2 list`), reiniciar (`pm2 restart grad-bot`), iniciar (`pm2 start grad-bot`) e parar o robô via comandos nativos PM2 em um terminal integrado (Etapa 6.3).
+- [x] Ajuste de codificação UTF-8 e sanitização de sequências ANSI / códigos de escape de cores de terminal em `BotManagerService` (`lib/services/bot_manager_service.dart`), garantindo exibição limpa sem caracteres corrompidos no console do `BotControlDialog`.
+- [x] Ampliação dimensional do `BotControlDialog` (`maxWidth: 880`, `height: 620`) e inclusão de rolagem horizontal (`SingleChildScrollView` com `softWrap: false`) no console do terminal PM2 para evitar quebras indesejadas de tabela em `bot_control_dialog.dart`.
 
 ## 5. Backlog Operacional (Próximos Marcos)
-- [x] Remoção do cabeçalho estático no Grad Bot e início direto pela saudação humana.
+- [x] Ampliação da largura do BotControlDialog e suporte a scroll horizontal no console PM2.
 - [ ] Compilação de produção das demais edições do PS DesKom.
 - [ ] Estruturação do instalador modular do Windows (HM NIS Edit / NSIS).
 - [ ] Planejamento e desacoplamento do módulo de IA Local para a Versão Dev.

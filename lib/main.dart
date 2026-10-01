@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/commander_provider.dart';
 import 'providers/locale_provider.dart';
+import 'views/bot_control_dialog.dart';
 import 'views/welcome_view.dart';
 import 'widgets/about_dialog_widget.dart';
 import 'widgets/audio_preview_card.dart';
@@ -742,6 +743,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         );
                       },
                     ),
+                    if (const String.fromEnvironment('APP_EDITION', defaultValue: '') == 'MASTER' ||
+                        state.statusLicencaTexto.contains('Master')) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.smart_toy_outlined, size: 20, color: Color(0xFF0078D4)),
+                        tooltip: 'Gerenciador Grad Bot (PM2)',
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => const BotControlDialog(),
+                          );
+                        },
+                      ),
+                    ],
                     const SizedBox(width: 8),
                     OutlinedButton.icon(
                       onPressed: () => notifier.limparTerminal(),
