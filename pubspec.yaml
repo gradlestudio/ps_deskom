@@ -23,6 +23,7 @@ dependencies:
   crypto: ^3.0.3
   window_manager: ^0.3.9
   cupertino_icons: ^1.0.8
+  archive: ^3.6.1
 
 dev_dependencies:
   flutter_test:
@@ -36,3 +37,4 @@ flutter:
     - assets/images/
     - assets/icones/
     - assets/flags/
+    - assets/tools/

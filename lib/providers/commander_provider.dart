@@ -467,6 +467,12 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
     state = state.copyWith(logsTerminal: '');
   }
 
+  void adicionarLog(String mensagem) {
+    state = state.copyWith(
+      logsTerminal: '${state.logsTerminal}> $mensagem\n',
+    );
+  }
+
   void selecionarModulo(int index) {
     state = state.copyWith(moduloSelecionado: index);
   }

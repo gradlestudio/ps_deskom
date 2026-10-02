@@ -10,6 +10,7 @@ import 'l10n/app_localizations.dart';
 import 'providers/commander_provider.dart';
 import 'providers/locale_provider.dart';
 import 'views/bot_control_dialog.dart';
+import 'views/gsse_compiler_view.dart';
 import 'views/welcome_view.dart';
 import 'widgets/about_dialog_widget.dart';
 import 'widgets/audio_preview_card.dart';
@@ -538,12 +539,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final notifier = ref.read(commanderProvider.notifier);
     final l10n = AppLocalizations.of(context);
 
+    const String appEditionEnv = String.fromEnvironment('APP_EDITION', defaultValue: '');
+    final bool showGsseTab = appEditionEnv == 'MASTER' ||
+        appEditionEnv.startsWith('DEV') ||
+        state.statusLicencaTexto.contains('Master') ||
+        state.statusLicencaTexto.contains('Dev');
+
     final List<String> modulos = [
       l10n?.descompactar ?? 'DESCOMPACTAR',
       l10n?.copiar ?? 'COPIAR',
       l10n?.mover ?? 'MOVER',
       l10n?.organizar ?? 'ORGANIZAR',
       l10n?.procurar ?? 'PROCURAR',
+      if (showGsseTab) l10n?.abaCompilarInstalador ?? 'COMPILAR INSTALADOR',
     ];
 
     return Scaffold(
@@ -1098,6 +1106,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return _buildModuloOrganizar(context, state, notifier);
       case 4:
         return _buildModuloProcurar(context, state, notifier);
+      case 5:
+        return const GsseCompilerView();
       default:
         return _buildModuloEmDesenvolvimento(modulos[state.moduloSelecionado]);
     }
