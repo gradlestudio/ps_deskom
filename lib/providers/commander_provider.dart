@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../l10n/app_localizations.dart';
+import '../repositories/local_ai_repository.dart';
+import '../repositories/lmstudio_repository_impl.dart';
+
 import '../services/license_service.dart';
-import '../services/lmstudio_service.dart';
 import '../services/powershell_service.dart';
 import '../services/update_service.dart';
 import '../widgets/update_dialog.dart';
+import 'local_ai_provider.dart';
 
 enum SearchMode { duplicates, fileSearch }
 
@@ -36,11 +40,83 @@ class FoundFileInfo {
   }
 }
 
+class LogEntry {
+  final String? key;
+  final Map<String, dynamic>? args;
+  final String? rawMessage;
+
+  const LogEntry({this.key, this.args, this.rawMessage});
+
+  String resolve(AppLocalizations? l10n) {
+    if (key != null && l10n != null) {
+      switch (key) {
+        case 'statusLicencaLog':
+          return l10n.statusLicencaLog(
+            args?['status']?.toString() ?? '',
+            args?['hwid']?.toString() ?? '',
+          );
+        case 'googleDriveDetectadoConsole':
+          return l10n.googleDriveDetectadoConsole(
+            args?['path']?.toString() ?? '',
+          );
+        case 'googleDriveNaoEncontradoConsole':
+          return l10n.googleDriveNaoEncontradoConsole;
+        case 'console_copy_running':
+          return l10n.console_copy_running;
+        case 'console_copy_start':
+          return l10n.console_copy_start(
+            (args?['count'] as int?) ?? 0,
+          );
+        case 'console_copy_dest':
+          return l10n.console_copy_dest(
+            args?['dir']?.toString() ?? '',
+          );
+        case 'console_copy_collision':
+          return l10n.console_copy_collision(
+            args?['rule']?.toString() ?? '',
+          );
+        case 'console_copy_organize':
+          return l10n.console_copy_organize(
+            args?['value']?.toString() ?? '',
+          );
+        case 'console_copy_audit':
+          return l10n.console_copy_audit(
+            args?['value']?.toString() ?? '',
+          );
+        case 'console_copy_success':
+          return l10n.console_copy_success;
+        case 'console_ai_title':
+          return l10n.console_ai_title;
+        case 'console_ai_model':
+          return l10n.console_ai_model(
+            args?['model']?.toString() ?? '',
+          );
+        case 'console_ai_prompt':
+          return l10n.console_ai_prompt(
+            args?['prompt']?.toString() ?? '',
+          );
+        case 'console_ai_success':
+          return l10n.console_ai_success;
+        case 'console_ai_timeout':
+          return l10n.console_ai_timeout;
+        case 'console_copy_batch_finished':
+          return l10n.console_copy_batch_finished;
+        case 'aguardandoAcaoUsuario':
+          return l10n.aguardandoAcaoUsuario;
+        case 'limpandoConsole':
+          return l10n.limpandoConsole;
+      }
+    }
+    return rawMessage ?? '';
+  }
+}
+
 class CommanderState {
   final bool isLoading;
   final String prompt;
   final String comandoGerado;
   final String logsTerminal;
+  final List<LogEntry> logEntries;
   final List<Map<String, String>> historico;
 
   // Estado dos Módulos
@@ -116,6 +192,7 @@ class CommanderState {
     this.prompt = '',
     this.comandoGerado = '',
     this.logsTerminal = '',
+    this.logEntries = const [],
     this.historico = const [],
     this.moduloSelecionado = 0,
     this.arquivosOrigem = const [],
@@ -158,11 +235,26 @@ class CommanderState {
             Map.fromEntries(
                 categoriasDefinidas.keys.map((k) => MapEntry(k, false)));
 
+  String getFormattedLogs(AppLocalizations? l10n) {
+    if (logEntries.isNotEmpty) {
+      final StringBuffer sb = StringBuffer();
+      for (var entry in logEntries) {
+        final text = entry.resolve(l10n);
+        if (text.isNotEmpty) {
+          sb.writeln('> $text');
+        }
+      }
+      return sb.toString();
+    }
+    return logsTerminal;
+  }
+
   CommanderState copyWith({
     bool? isLoading,
     String? prompt,
     String? comandoGerado,
     String? logsTerminal,
+    List<LogEntry>? logEntries,
     List<Map<String, String>>? historico,
     int? moduloSelecionado,
     List<String>? arquivosOrigem,
@@ -207,6 +299,7 @@ class CommanderState {
       prompt: prompt ?? this.prompt,
       comandoGerado: comandoGerado ?? this.comandoGerado,
       logsTerminal: logsTerminal ?? this.logsTerminal,
+      logEntries: logEntries ?? this.logEntries,
       historico: historico ?? this.historico,
       moduloSelecionado: moduloSelecionado ?? this.moduloSelecionado,
       arquivosOrigem: arquivosOrigem ?? this.arquivosOrigem,
@@ -257,17 +350,17 @@ class CommanderState {
 }
 
 class CommanderNotifier extends StateNotifier<CommanderState> {
-  final LMStudioService _lmStudioService;
+  final LocalAiRepository? _localAiRepository;
   final PowerShellService _powerShellService;
   final LicenseService _licenseService;
   final UpdateService _updateService;
 
   CommanderNotifier({
-    LMStudioService? lmStudioService,
+    LocalAiRepository? localAiRepository,
     PowerShellService? powerShellService,
     LicenseService? licenseService,
     UpdateService? updateService,
-  })  : _lmStudioService = lmStudioService ?? LMStudioService(),
+  })  : _localAiRepository = localAiRepository ?? (isLocalAiSupported() ? LmStudioRepositoryImpl() : null),
         _powerShellService = powerShellService ?? PowerShellService(),
         _licenseService = licenseService ?? LicenseService(),
         _updateService = updateService ?? UpdateService(),
@@ -467,8 +560,36 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
     state = state.copyWith(logsTerminal: '');
   }
 
-  void adicionarLog(String mensagem) {
+  void inicializarLogsComL10n(AppLocalizations l10n) {
+    final statusTipo = state.statusLicencaTexto;
+    final hwid = state.hwidAtual;
+    final drive = state.caminhoGoogleDriveDetectado;
+
+    final StringBuffer buffer = StringBuffer();
+    if (statusTipo.isNotEmpty) {
+      buffer.writeln('> ${l10n.statusLicencaLog(statusTipo, hwid)}');
+    }
+    if (drive != null && drive.isNotEmpty) {
+      buffer.writeln('> ${l10n.googleDriveDetectadoConsole(drive)}');
+    } else {
+      buffer.writeln('> ${l10n.googleDriveNaoEncontradoConsole}');
+    }
+
+    state = state.copyWith(logsTerminal: buffer.toString());
+  }
+
+  void adicionarLogKey(String key, [Map<String, dynamic>? args]) {
+    final entry = LogEntry(key: key, args: args);
     state = state.copyWith(
+      logEntries: [...state.logEntries, entry],
+      logsTerminal: '${state.logsTerminal}> [LOG] $key\n',
+    );
+  }
+
+  void adicionarLog(String mensagem) {
+    final entry = LogEntry(rawMessage: mensagem);
+    state = state.copyWith(
+      logEntries: [...state.logEntries, entry],
       logsTerminal: '${state.logsTerminal}> $mensagem\n',
     );
   }
@@ -640,24 +761,43 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
   Future<void> solicitarComando(String prompt) async {
     if (prompt.trim().isEmpty) return;
 
+    if (_localAiRepository == null) {
+      adicionarLogKey('console_ai_timeout');
+      return;
+    }
+
     state = state.copyWith(
       isLoading: true,
       prompt: prompt,
-      logsTerminal: '${state.logsTerminal}> Solicitando comando para: "$prompt"...\n',
     );
 
+    adicionarLogKey('console_ai_title');
+    adicionarLogKey('console_ai_prompt', {'prompt': prompt});
+
     try {
-      final comando = await _lmStudioService.generatePowerShellCommand(prompt);
+      const systemPrompt =
+          'Você é um gerador de comandos e scripts PowerShell para Windows. '
+          'Responda ESTRITAMENTE com o código executável do PowerShell, sem qualquer explicação, '
+          'sem blocos de código markdown, sem crases (``` ou `) e sem texto adicional.';
+
+      final comandoRaw = await _localAiRepository.sendPrompt(
+        prompt: prompt,
+        systemPrompt: systemPrompt,
+      );
+
+      String cleaned = comandoRaw.trim();
+      cleaned = cleaned.replaceAll(RegExp(r'^```[a-zA-Z]*\n?'), '');
+      cleaned = cleaned.replaceAll(RegExp(r'\n?```$'), '');
+      cleaned = cleaned.replaceAll(RegExp(r'```'), '');
+
       state = state.copyWith(
         isLoading: false,
-        comandoGerado: comando,
-        logsTerminal: '${state.logsTerminal}> Comando gerado com sucesso via LM Studio.\n',
+        comandoGerado: cleaned.trim(),
       );
+      adicionarLogKey('console_ai_success');
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        logsTerminal: '${state.logsTerminal}> [ERRO IA]: $e\n',
-      );
+      state = state.copyWith(isLoading: false);
+      adicionarLogKey('console_ai_timeout');
     }
   }
 
@@ -738,6 +878,51 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
     }
   }
 
+  Future<void> dispararCompactacao(String nomeZip) async {
+    if (state.arquivosOrigem.isEmpty ||
+        state.diretorioDestino == null ||
+        state.diretorioDestino!.isEmpty) {
+      return;
+    }
+
+    state = state.copyWith(
+      isLoading: true,
+      progressoExecucao: 0.0,
+      statusOperacao: 'Iniciando lote de compactação...',
+    );
+
+    adicionarLog('Iniciando compactação em lote (.zip)...');
+
+    try {
+      final resultado = await _powerShellService.compactarArquivos(
+        arquivosOrigem: state.arquivosOrigem,
+        diretorioDestino: state.diretorioDestino!,
+        nomeArquivoZip: nomeZip,
+        onProgresso: (processados, total, arquivoAtual) {
+          final prog = processados / total;
+          state = state.copyWith(
+            progressoExecucao: prog,
+            statusOperacao: 'Compactando ($processados/$total): $arquivoAtual',
+          );
+        },
+      );
+
+      state = state.copyWith(
+        isLoading: false,
+        progressoExecucao: 1.0,
+        statusOperacao: 'Lote de compactação finalizado com sucesso!',
+      );
+      adicionarLog(resultado);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        progressoExecucao: 0.0,
+        statusOperacao: 'Erro durante a compactação.',
+      );
+      adicionarLog('[ERRO COMPACTAÇÃO] $e');
+    }
+  }
+
   Future<void> dispararCopia() async {
     if (state.itensCopiarOrigem.isEmpty ||
         state.destinoCopiar == null ||
@@ -749,8 +934,14 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
       isLoading: true,
       progressoExecucao: 0.0,
       statusOperacao: 'Iniciando cópia de itens...',
-      logsTerminal: '${state.logsTerminal}> Executando cópia em lote no Windows...\n',
     );
+
+    adicionarLogKey('console_copy_running');
+    adicionarLogKey('console_copy_start', {'count': state.itensCopiarOrigem.length});
+    adicionarLogKey('console_copy_dest', {'dir': state.destinoCopiar!});
+    adicionarLogKey('console_copy_collision', {'rule': state.regraColisaoCopiar});
+    adicionarLogKey('console_copy_organize', {'value': state.organizarAposTransferir ? 'Sim' : 'Não'});
+    adicionarLogKey('console_copy_audit', {'value': state.auditarSha256 ? 'Ativa' : 'Inativa'});
 
     try {
       final resultado = await _powerShellService.copiarItens(
@@ -772,15 +963,16 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
         isLoading: false,
         progressoExecucao: 1.0,
         statusOperacao: 'Lote de cópia finalizado com sucesso!',
-        logsTerminal: '${state.logsTerminal}$resultado\n',
       );
+      adicionarLog(resultado);
+      adicionarLogKey('console_copy_batch_finished');
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         progressoExecucao: 0.0,
         statusOperacao: 'Erro durante a cópia de itens.',
-        logsTerminal: '${state.logsTerminal}> [ERRO CÓPIA]: $e\n',
       );
+      adicionarLog('[ERRO CÓPIA] $e');
     }
   }
 

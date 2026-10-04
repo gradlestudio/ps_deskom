@@ -18,7 +18,10 @@ class PowerShellService {
     }
   }
 
-  Future<String> executeScriptFile(String psScript) async {
+  Future<String> executeScriptFile(
+    String psScript, {
+    void Function(String line)? onLog,
+  }) async {
     final tempDir = Directory.systemTemp;
     final tempFile = File(
       p.join(
@@ -49,8 +52,29 @@ class PowerShellService {
       final List<int> stdoutBytes = [];
       final List<int> stderrBytes = [];
 
-      process.stdout.listen((data) => stdoutBytes.addAll(data));
-      process.stderr.listen((data) => stderrBytes.addAll(data));
+      process.stdout.listen((data) {
+        stdoutBytes.addAll(data);
+        if (onLog != null) {
+          final text = utf8.decode(data, allowMalformed: true);
+          for (var line in text.split('\n')) {
+            if (line.trim().isNotEmpty) {
+              onLog(line.trim());
+            }
+          }
+        }
+      });
+
+      process.stderr.listen((data) {
+        stderrBytes.addAll(data);
+        if (onLog != null) {
+          final text = utf8.decode(data, allowMalformed: true);
+          for (var line in text.split('\n')) {
+            if (line.trim().isNotEmpty) {
+              onLog('[STDERR] ${line.trim()}');
+            }
+          }
+        }
+      });
 
       final exitCode = await process.exitCode;
       final stdout = utf8.decode(stdoutBytes, allowMalformed: true);
@@ -187,6 +211,51 @@ Write-Output "Concluído: \$src -> \$dest"
     }
 
     logBuffer.writeln('Todas as extrações foram finalizadas.');
+    return logBuffer.toString();
+  }
+
+  Future<String> compactarArquivos({
+    required List<String> arquivosOrigem,
+    required String diretorioDestino,
+    required String nomeArquivoZip,
+    void Function(int processados, int total, String arquivoAtual)? onProgresso,
+  }) async {
+    final StringBuffer logBuffer = StringBuffer();
+    final total = arquivosOrigem.length;
+
+    logBuffer.writeln('Iniciando compactação de $total item(ns) em arquivo .zip...');
+    logBuffer.writeln('Diretório Destino: $diretorioDestino');
+    logBuffer.writeln('Nome do Arquivo: $nomeArquivoZip\n');
+
+    final zipName = nomeArquivoZip.endsWith('.zip') ? nomeArquivoZip : '$nomeArquivoZip.zip';
+    final targetZipPath = p.join(diretorioDestino, zipName);
+
+    final escapedZip = targetZipPath.replaceAll("'", "''");
+    final escapedDestDir = diretorioDestino.replaceAll("'", "''");
+    final escapedSources = arquivosOrigem.map((f) => "'${f.replaceAll("'", "''")}'").join(', ');
+
+    final psScript = '''
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+\$destDir = '$escapedDestDir'
+\$zipPath = '$escapedZip'
+\$sources = @($escapedSources)
+
+if (-not (Test-Path -LiteralPath \$destDir)) {
+    New-Item -ItemType Directory -Force -Path \$destDir | Out-Null
+}
+
+if (Test-Path -LiteralPath \$zipPath) {
+    Remove-Item -LiteralPath \$zipPath -Force -ErrorAction SilentlyContinue
+}
+
+Compress-Archive -LiteralPath \$sources -DestinationPath \$zipPath -CompressionLevel Optimal -Force
+Write-Output "COMPACTADO COM SUCESSO: \$zipPath"
+''';
+
+    final res = await executeScriptFile(psScript);
+    logBuffer.writeln(res.trim());
+    logBuffer.writeln('----------------------------------------');
+    logBuffer.writeln('Todas as compactações foram finalizadas.');
     return logBuffer.toString();
   }
 

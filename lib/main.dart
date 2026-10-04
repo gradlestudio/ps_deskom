@@ -11,10 +11,13 @@ import 'providers/commander_provider.dart';
 import 'providers/locale_provider.dart';
 import 'views/bot_control_dialog.dart';
 import 'views/gsse_compiler_view.dart';
+import 'views/local_ai_view.dart';
 import 'views/welcome_view.dart';
 import 'widgets/about_dialog_widget.dart';
 import 'widgets/audio_preview_card.dart';
+import 'widgets/connect_ai_dialog.dart';
 import 'widgets/google_drive_dialog.dart';
+import 'widgets/google_login_dialog.dart';
 import 'widgets/update_dialog.dart';
 
 void main() async {
@@ -284,12 +287,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _extController = TextEditingController();
   final TextEditingController _pastaController = TextEditingController();
+  final TextEditingController _zipNameController = TextEditingController(text: 'Arquivo_Compactado.zip');
 
   @override
   void dispose() {
     _scrollController.dispose();
     _extController.dispose();
     _pastaController.dispose();
+    _zipNameController.dispose();
     super.dispose();
   }
 
@@ -305,17 +310,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
-  // Descompactar
+  // Descompactar / Compactar
   Future<void> _adicionarArquivos() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
-      type: FileType.custom,
-      allowedExtensions: ['zip', 'rar', '7z'],
     );
 
     if (result != null) {
       final paths = result.paths.whereType<String>().toList();
       ref.read(commanderProvider.notifier).adicionarArquivos(paths);
+    }
+  }
+
+  Future<void> _adicionarPastaOrigem() async {
+    String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+    if (selectedDirectory != null) {
+      ref.read(commanderProvider.notifier).adicionarArquivos([selectedDirectory]);
     }
   }
 
@@ -539,6 +549,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final notifier = ref.read(commanderProvider.notifier);
     final l10n = AppLocalizations.of(context);
 
+    ref.listen<Locale>(localeProvider, (previous, next) {
+      if (previous != next && l10n != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          notifier.inicializarLogsComL10n(l10n);
+        });
+      }
+    });
+
+    if (state.logsTerminal.isEmpty && l10n != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifier.inicializarLogsComL10n(l10n);
+      });
+    }
+
     const String appEditionEnv = String.fromEnvironment('APP_EDITION', defaultValue: '');
     final bool showGsseTab = appEditionEnv == 'MASTER' ||
         appEditionEnv.startsWith('DEV') ||
@@ -547,11 +571,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final List<String> modulos = [
       l10n?.descompactar ?? 'DESCOMPACTAR',
+      l10n?.compactar ?? 'COMPACTAR',
       l10n?.copiar ?? 'COPIAR',
       l10n?.mover ?? 'MOVER',
       l10n?.organizar ?? 'ORGANIZAR',
       l10n?.procurar ?? 'PROCURAR',
       if (showGsseTab) l10n?.abaCompilarInstalador ?? 'COMPILAR INSTALADOR',
+      if (showGsseTab) l10n?.iaLocal ?? 'IA LOCAL',
     ];
 
     return Scaffold(
@@ -751,6 +777,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         );
                       },
                     ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.account_circle_outlined, size: 20, color: Color(0xFF4EC9B0)),
+                      tooltip: l10n?.entrarComGoogle ?? 'Entrar com Google',
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => const GoogleLoginDialog(),
+                        );
+                      },
+                    ),
+                    if (showGsseTab) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.cloud_sync_outlined, size: 20, color: Color(0xFF0078D4)),
+                        tooltip: l10n?.modalConectarIa ?? 'Conectar IA',
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => const ConnectAiDialog(),
+                          );
+                        },
+                      ),
+                    ],
                     if (const String.fromEnvironment('APP_EDITION', defaultValue: '') == 'MASTER' ||
                         state.statusLicencaTexto.contains('Master')) ...[
                       const SizedBox(width: 8),
@@ -1065,13 +1115,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       child: SelectableText(
-                        state.logsTerminal.isEmpty
+                        state.getFormattedLogs(l10n).isEmpty
                             ? (l10n?.terminalPronto ?? 'Terminal pronto. Módulo operacional pronto.')
-                            : state.logsTerminal,
+                            : state.getFormattedLogs(l10n),
                         style: TextStyle(
                           fontFamily: 'Consolas',
                           fontSize: 12,
-                          color: state.logsTerminal.isEmpty
+                          color: state.getFormattedLogs(l10n).isEmpty
                               ? const Color(0xFF666666)
                               : const Color(0xFF4EC9B0),
                           height: 1.4,
@@ -1099,15 +1149,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       case 0:
         return _buildModuloDescompactar(context, state, notifier);
       case 1:
-        return _buildModuloCopiar(context, state, notifier);
+        return _buildModuloCompactar(context, state, notifier);
       case 2:
-        return _buildModuloMover(context, state, notifier);
+        return _buildModuloCopiar(context, state, notifier);
       case 3:
-        return _buildModuloOrganizar(context, state, notifier);
+        return _buildModuloMover(context, state, notifier);
       case 4:
-        return _buildModuloProcurar(context, state, notifier);
+        return _buildModuloOrganizar(context, state, notifier);
       case 5:
+        return _buildModuloProcurar(context, state, notifier);
+      case 6:
         return const GsseCompilerView();
+      case 7:
+        return const LocalAiView();
       default:
         return _buildModuloEmDesenvolvimento(modulos[state.moduloSelecionado]);
     }
@@ -1373,6 +1427,247 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ],
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModuloCompactar(
+    BuildContext context,
+    CommanderState state,
+    CommanderNotifier notifier,
+  ) {
+    final l10n = AppLocalizations.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ORIGEM DOS ARQUIVOS PARA COMPACTAR
+        Expanded(
+          child: Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+              side: const BorderSide(color: Color(0xFF3F3F46)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.archive_outlined,
+                              color: Color(0xFF0078D4), size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${l10n?.origem ?? 'ORIGEM'} [${state.arquivosOrigem.length}]',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: _adicionarArquivos,
+                            icon: const Icon(Icons.add, size: 16),
+                            label: Text(l10n?.adicionarArquivos ?? '(+) Arquivos'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0078D4),
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          ElevatedButton.icon(
+                            onPressed: _adicionarPastaOrigem,
+                            icon: const Icon(Icons.folder_open, size: 16),
+                            label: Text(l10n?.adicionarPasta ?? '(+) Pasta'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2D2D2D),
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFF333333)),
+                      ),
+                      child: state.arquivosOrigem.isEmpty
+                          ? Center(
+                              child: Text(
+                                l10n?.nenhumArquivoLocalizado ?? 'Nenhum arquivo ou pasta selecionado.',
+                                style: const TextStyle(color: Color(0xFF888888)),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: state.arquivosOrigem.length,
+                              itemBuilder: (context, index) {
+                                final filePath = state.arquivosOrigem[index];
+                                return ListTile(
+                                  dense: true,
+                                  leading: const Icon(Icons.insert_drive_file_outlined,
+                                      size: 18, color: Color(0xFFCCCCCC)),
+                                  title: Text(
+                                    p.basename(filePath),
+                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                  ),
+                                  subtitle: Text(
+                                    filePath,
+                                    style: const TextStyle(
+                                        color: Color(0xFF888888), fontSize: 11),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.close,
+                                        color: Colors.redAccent, size: 18),
+                                    onPressed: () => notifier.removerArquivo(filePath),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+
+        // DESTINO DO ARQUIVO COMPACTADO (.ZIP)
+        Expanded(
+          child: Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+              side: const BorderSide(color: Color(0xFF3F3F46)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.folder_outlined,
+                              color: Color(0xFF107C41), size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            l10n?.destino ?? 'DESTINO',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _selecionarPastaDestino,
+                        icon: const Icon(Icons.folder_open, size: 16),
+                        label: Text(l10n?.selecionarPasta ?? 'Selecionar Pasta'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF107C41),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFF333333)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SelectableText(
+                          (state.diretorioDestino != null && state.diretorioDestino!.isNotEmpty)
+                              ? state.diretorioDestino!
+                              : (l10n?.nenhumDiretorioSelecionado ?? 'Nenhum diretório selecionado. Clique em "Selecionar Pasta".'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: (state.diretorioDestino != null && state.diretorioDestino!.isNotEmpty)
+                                ? const Color(0xFF4EC9B0)
+                                : const Color(0xFF888888),
+                            fontFamily: 'Consolas',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    l10n?.labelNomeArquivoZip ?? 'Nome do Arquivo Compactado (.zip):',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFCCCCCC)),
+                  ),
+                  const SizedBox(height: 6),
+                  TextFormField(
+                    controller: _zipNameController,
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontFamily: 'Consolas'),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      hintText: 'Arquivo_Compactado.zip',
+                    ),
+                  ),
+                  const Spacer(),
+                  if (state.isLoading)
+                    Column(
+                      children: [
+                        LinearProgressIndicator(
+                          value: state.progressoExecucao,
+                          backgroundColor: const Color(0xFF2D2D2D),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0078D4)),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          state.statusOperacao,
+                          style: const TextStyle(color: Color(0xFF4EC9B0), fontSize: 12),
+                        ),
+                      ],
+                    )
+                  else
+                    ElevatedButton.icon(
+                      onPressed: (state.arquivosOrigem.isEmpty || state.diretorioDestino == null)
+                          ? null
+                          : () {
+                              notifier.dispararCompactacao(_zipNameController.text);
+                            },
+                      icon: const Icon(Icons.archive, size: 18),
+                      label: Text(l10n?.btnCompactarAgora ?? 'COMPACTAR ARQUIVOS EM LOTE'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0078D4),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -2503,38 +2798,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                 const SizedBox(height: 8),
 
-                // Linha 2: Filtros de Busca Responsivos (Flex)
-                Row(
+                // Linha 2: Filtros de Busca Responsivos com Checkboxes Diretos
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     const Text(
                       'Filtros:',
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF888888)),
                     ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      flex: 2,
-                      child: DropdownButtonFormField<String>(
-                        initialValue: state.categoriaFiltroBusca,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                    ...[
+                      {'key': 'todos', 'label': l10n?.todasMidias ?? 'Todas Mídias'},
+                      {'key': 'imagens', 'label': l10n?.imagens ?? 'Imagens'},
+                      {'key': 'videos', 'label': l10n?.videos ?? 'Vídeos'},
+                      {'key': 'audios', 'label': l10n?.musicas ?? 'Áudios'},
+                      {'key': 'textos', 'label': 'Texto/Docs'},
+                      {'key': 'instaladores', 'label': l10n?.instaladores ?? 'Instaladores'},
+                    ].map((cat) {
+                      final String catKey = cat['key']!;
+                      final String catLabel = cat['label']!;
+                      final bool isSelected = state.categoriaFiltroBusca == catKey;
+
+                      return InkWell(
+                        onTap: () => notifier.setCategoriaFiltro(catKey),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0xFF0078D4).withValues(alpha: 0.2) : const Color(0xFF2D2D2D),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: isSelected ? const Color(0xFF0078D4) : const Color(0xFF3F3F46),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: Checkbox(
+                                  value: isSelected,
+                                  activeColor: const Color(0xFF0078D4),
+                                  onChanged: (val) {
+                                    if (val == true) {
+                                      notifier.setCategoriaFiltro(catKey);
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                catLabel,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isSelected ? Colors.white : const Color(0xFFCCCCCC),
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        dropdownColor: const Color(0xFF2D2D2D),
-                        items: [
-                          DropdownMenuItem(value: 'todos', child: Text(l10n?.todasMidias ?? 'Todas Mídias', style: const TextStyle(fontSize: 11))),
-                          DropdownMenuItem(value: 'imagens', child: Text(l10n?.imagens ?? 'Imagens', style: const TextStyle(fontSize: 11))),
-                          DropdownMenuItem(value: 'videos', child: Text(l10n?.videos ?? 'Vídeos', style: const TextStyle(fontSize: 11))),
-                          DropdownMenuItem(value: 'audios', child: Text(l10n?.musicas ?? 'Áudios', style: const TextStyle(fontSize: 11))),
-                          DropdownMenuItem(value: 'textos', child: const Text('Texto/Docs', style: TextStyle(fontSize: 11))),
-                          DropdownMenuItem(value: 'instaladores', child: Text(l10n?.instaladores ?? 'Instaladores', style: const TextStyle(fontSize: 11))),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) notifier.setCategoriaFiltro(val);
-                        },
-                      ),
-                    ),
-                    if (!isDuplicatesMode) ...[
-                      const SizedBox(width: 6),
+                      );
+                    }),
+                  ],
+                ),
+                if (!isDuplicatesMode) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
                       Expanded(
                         flex: 4,
                         child: TextField(
@@ -2570,8 +2902,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                     ],
-                  ],
-                ),
+                  ),
+                ],
               ],
             ),
           ),
