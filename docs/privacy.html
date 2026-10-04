@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidade — PS DesKom (Gradle Studio)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background-color: #0D1117;
+      color: #C9D1D9;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 850px;
+      margin: 0 auto;
+      background: #161B22;
+      border: 1px solid #30363D;
+      border-radius: 8px;
+      padding: 40px;
+    }
+    h1 { color: #58A6FF; font-size: 26px; margin-bottom: 8px; }
+    h2 { color: #79C0FF; font-size: 18px; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid #30363D; padding-bottom: 4px; }
+    p, li { margin-bottom: 12px; color: #8B949E; font-size: 14px; }
+    ul { margin-left: 20px; }
+    .highlight { background: rgba(56, 139, 253, 0.15); border-left: 4px solid #58A6FF; padding: 12px; margin: 16px 0; border-radius: 0 4px 4px 0; }
+    a { color: #58A6FF; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    footer { margin-top: 32px; font-size: 12px; color: #8B949E; border-top: 1px solid #30363D; padding-top: 16px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Política de Privacidade — PS DesKom</h1>
+    <p><em>Última atualização: Março de 2026</em></p>
+
+    <div class="highlight">
+      <strong>Resumo de Privacidade:</strong> O <strong>PS DesKom</strong> é uma aplicação nativa de desktop desenvolvida pela <strong>Gradle Studio</strong>. Todo o processamento de arquivos, descompactação, organização e auditoria ocorre localmente no seu computador. Não vendemos nem compartilhamos seus dados pessoais ou de arquivos com terceiros.
+    </div>
+
+    <h2>1. Informações do Desenvolvedor</h2>
+    <p>
+      <strong>Razão Social / Desenvolvedor:</strong> Gradle Studio<br>
+      <strong>E-mail de Contato:</strong> <a href="mailto:gradlestudio.dev@gmail.com">gradlestudio.dev@gmail.com</a><br>
+      <strong>Foro Elegido:</strong> Fortaleza, Ceará, Brasil.
+    </p>
+
+    <h2>2. Coleta e Uso de Dados do Usuário</h2>
+    <p>
+      O PS DesKom coleta e utiliza apenas o estritamente necessário para o funcionamento das ferramentas de produtividade do software:
+    </p>
+    <ul>
+      <li><strong>Identificador de Hardware (HWID):</strong> Um código hash único gerado a partir de componentes locais do seu computador para validação e ativação da licença do software offline.</li>
+      <li><strong>Arquivos do Usuário:</strong> Processados 100% no seu dispositivo. Nenhum conteúdo de arquivo, documento, imagem, áudio ou vídeo selecionado para cópia, movimentação ou organização é enviado para servidores externos.</li>
+    </ul>
+
+    <h2>3. Integração Google OAuth2 e Google Drive Scope</h2>
+    <p>
+      Quando você utiliza a funcionalidade de integração com o Google Drive no PS DesKom, solicitará autenticação via Google OAuth2 com o escopo limitado <code>https://www.googleapis.com/auth/drive.file</code>.
+    </p>
+    <ul>
+      <li><strong>Escopo Limitado:</strong> O PS DesKom acessa e manipula apenas os arquivos selecionados ou criados explicitamente por você através da aplicação.</li>
+      <li><strong>Uso dos Dados:</strong> Os tokens de acesso obtidos são armazenados exclusivamente no seu dispositivo local (via SharedPreferences / Windows Credential Store) para autorizar a sincronização e cópia de arquivos.</li>
+      <li><strong>Conformidade com a Política de Dados de Usuário dos Serviços de API do Google:</strong> O uso e a transferência para qualquer outro aplicativo das informações recebidas das APIs do Google pelo PS DesKom atenderão à <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Política de Dados de Usuário dos Serviços de API do Google</a>, incluindo os requisitos de Uso Limitado (Limited Use).</li>
+    </ul>
+
+    <h2>4. Módulo de IA Local e Chaves de API (BYOK)</h2>
+    <p>
+      Nas edições Master e Dev, o módulo de IA Local (LM Studio) funciona via REST API no endereço local <code>http://127.0.0.1:1234</code>. Nenhuma instrução digitada sai da sua máquina no modo local. Caso você cadastre chaves de API externas (Google Gemini, Anthropic Claude ou OpenAI), as chaves são salvas criptografadas no seu dispositivo e enviadas diretamente do seu computador para os respectivos provedores.
+    </p>
+
+    <h2>5. Compartilhamento e Transferência de Dados</h2>
+    <p>
+      A Gradle Studio <strong>NÃO compartilha, vende, aluga ou transfere</strong> dados de usuários, tokens do Google ou arquivos para terceiros, corretores de dados ou plataformas publicitárias.
+    </p>
+
+    <h2>6. Segurança dos Dados</h2>
+    <p>
+      Utilizamos práticas de segurança padrão da indústria para proteger as informações mantidas no seu dispositivo local, incluindo codificação UTF-8 segura, isolamento em sandbox do sistema operacional e armazenamento de credenciais protegidas no Windows.
+    </p>
+
+    <h2>7. Direitos do Usuário e LGPD</h2>
+    <p>
+      Em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018), você possui o direito de revogar o acesso à sua conta do Google a qualquer momento através das <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Configurações de Segurança da sua Conta Google</a> ou clicando em "Desconectar Conta" dentro do PS DesKom.
+    </p>
+
+    <h2>8. Contato e Dúvidas</h2>
+    <p>
+      Se você tiver dúvidas sobre esta Política de Privacidade ou sobre o tratamento de dados do PS DesKom, entre em contato através do e-mail: <a href="mailto:gradlestudio.dev@gmail.com">gradlestudio.dev@gmail.com</a>.
+    </p>
+
+    <footer>
+      &copy; 2026 Gradle Studio — Todos os direitos reservados.<br>
+      <a href="index.html">Página Inicial</a> | <a href="terms.html">Termos de Serviço</a>
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,38 @@
+#include <windows.h>
+
+// Ícone Principal da Aplicação (ID 1)
+1 ICON "app_icon.ico"
+
+// Bloco de Informações de Versão e Metadados Win32
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+FILEFLAGS 0x1L
+#else
+FILEFLAGS 0x0L
+#endif
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "Gradle Studio\0"
+            VALUE "FileDescription", "Gradle Studio Setup Engine - Instalador Autônomo\0"
+            VALUE "FileVersion", "1.0.0.0\0"
+            VALUE "InternalName", "gs_stub.exe\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Gradle Studio. Todos os direitos reservados.\0"
+            VALUE "OriginalFilename", "gs_stub.exe\0"
+            VALUE "ProductName", "Gradle Studio Setup Engine\0"
+            VALUE "ProductVersion", "1.0.0.0\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
