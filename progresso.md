@@ -121,7 +121,10 @@
 - [x] Correção do fluxo de autorização OAuth2 Desktop em `GoogleAuthService` (`lib/services/google_auth_service.dart`): inclusão obrigatória de `response_type=code`, `access_type=offline`, servidor loopback local na porta 8088 (`http://127.0.0.1:8088/`), troca de código por perfil e tratamento de fallback gracioso, sanando o erro 400 (invalid_request - missing response_type).
 - [x] Resolução dos erros de herança em `ConnectAiDialog` (`lib/widgets/connect_ai_dialog.dart`): estruturação estrita da subclasse `_ConnectAiDialogState extends State<ConnectAiDialog>`, chamada de `super.initState()`/`super.dispose()` com `@override`, remoção de variáveis não utilizadas e validação com `flutter analyze`.
 - [x] Criação do diretório de documentação institucional `docs/` para GitHub Pages: `docs/index.html` (Landing Page oficial), `docs/privacy.html` (Política de Privacidade com conformidade LGPD, escopo `drive.file` e requisitos de Uso Limitado da API do Google) e `docs/terms.html` (Termos de Serviço), identificados com desenvolvedor Gradle Studio (`gradlestudio.dev@gmail.com`) e Foro de Fortaleza/CE.
+- [x] Captura e persistência de dados reais do perfil Google (`email`, `name`, `picture`) via endpoint `https://www.googleapis.com/oauth2/v3/userinfo` no `GoogleAuthService` (`lib/services/google_auth_service.dart`) e renderização dinâmica no `GoogleLoginDialog` (`lib/widgets/google_login_dialog.dart`) com avatar real e fallback gracioso.
+- [x] Configuração da inicialização obrigatória e incondicional na tela de Boas-Vindas (`WelcomeView` em `lib/views/welcome_view.dart`) em `AppRootWrapper` (`lib/main.dart`) para todas as edições no arranque do aplicativo.
+- [x] Conclusão da Fase B de desacoplamento do Grad Bot: remoção de `BotControlDialog` de `lib/main.dart`, exclusão dos arquivos de serviço/view do bot e remoção do diretório `tools/whatsapp_bot/`, mantendo o PS DesKom 100% enxuto e dedicado à gestão avançada de arquivos.
 
 ## 5. Backlog Operacional (Próximos Marcos)
-- [x] Documentos legais e landing page no diretório docs/ para GitHub Pages.
+- [x] Fase B - Desacoplamento e limpeza total do Grad Bot no PS DesKom concluída.
 - [ ] Planejamento e execução de testes de integração com LM Studio ativo e validação do fluxo de automação PowerShell.

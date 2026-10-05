@@ -5,11 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:window_manager/window_manager.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/commander_provider.dart';
 import 'providers/locale_provider.dart';
-import 'views/bot_control_dialog.dart';
 import 'views/gsse_compiler_view.dart';
 import 'views/local_ai_view.dart';
 import 'views/welcome_view.dart';
@@ -241,38 +239,9 @@ class AppRootWrapper extends StatefulWidget {
 }
 
 class _AppRootWrapperState extends State<AppRootWrapper> {
-  bool? _hasCompletedOnboarding;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkOnboarding();
-  }
-
-  Future<void> _checkOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    final completed = prefs.getBool('has_completed_onboarding') ?? false;
-    setState(() {
-      _hasCompletedOnboarding = completed;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_hasCompletedOnboarding == null) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF0D1117),
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF0078D4)),
-        ),
-      );
-    }
-
-    if (_hasCompletedOnboarding == true) {
-      return const HomeScreen();
-    } else {
-      return const WelcomeView();
-    }
+    return const WelcomeView();
   }
 }
 
@@ -797,20 +766,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           showDialog(
                             context: context,
                             builder: (_) => const ConnectAiDialog(),
-                          );
-                        },
-                      ),
-                    ],
-                    if (const String.fromEnvironment('APP_EDITION', defaultValue: '') == 'MASTER' ||
-                        state.statusLicencaTexto.contains('Master')) ...[
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.smart_toy_outlined, size: 20, color: Color(0xFF0078D4)),
-                        tooltip: 'Gerenciador Grad Bot (PM2)',
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => const BotControlDialog(),
                           );
                         },
                       ),

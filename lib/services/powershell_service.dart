@@ -18,6 +18,38 @@ class PowerShellService {
     }
   }
 
+  Future<void> abrirTerminalNativoWindows(String psScript) async {
+    final tempDir = Directory.systemTemp;
+    final tempFile = File(
+      p.join(
+        tempDir.path,
+        'ps_deskom_native_${DateTime.now().millisecondsSinceEpoch}_${_processCount++}.ps1',
+      ),
+    );
+
+    final utf8Bom = [0xEF, 0xBB, 0xBF];
+    const utf8Header =
+        '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;\n'
+        '[Console]::InputEncoding = [System.Text.Encoding]::UTF8;\n'
+        '\$OutputEncoding = [System.Text.Encoding]::UTF8;\n';
+    final fullScript = '$utf8Header\n$psScript';
+    final scriptBytes = utf8.encode(fullScript);
+    await tempFile.writeAsBytes([...utf8Bom, ...scriptBytes]);
+
+    await Process.start(
+      'powershell.exe',
+      [
+        '-NoExit',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        tempFile.path,
+      ],
+      runInShell: true,
+      mode: ProcessStartMode.detached,
+    );
+  }
+
   Future<String> executeScriptFile(
     String psScript, {
     void Function(String line)? onLog,
@@ -31,7 +63,14 @@ class PowerShellService {
     );
 
     final utf8Bom = [0xEF, 0xBB, 0xBF];
-    final scriptBytes = utf8.encode(psScript);
+    const utf8Header =
+        '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;\n'
+        '[Console]::InputEncoding = [System.Text.Encoding]::UTF8;\n'
+        '\$OutputEncoding = [System.Text.Encoding]::UTF8;\n';
+    final fullScript = psScript.startsWith('[Console]::OutputEncoding')
+        ? psScript
+        : '$utf8Header\n$psScript';
+    final scriptBytes = utf8.encode(fullScript);
     await tempFile.writeAsBytes([...utf8Bom, ...scriptBytes]);
 
     try {

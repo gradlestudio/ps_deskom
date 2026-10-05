@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class GoogleAuthService {
-  static const String clientId = '1038294719283-psdeskomdesktop.apps.googleusercontent.com';
+  static const String clientId = '689176821238-btq90a1q377dn57ngtbv30l1d6bfk2r5.apps.googleusercontent.com';
   static const int port = 8088;
   static const String redirectUri = 'http://127.0.0.1:$port/';
 
@@ -71,7 +71,6 @@ class GoogleAuthService {
         await request.response.close();
 
         if (code != null) {
-          // Troca o authorization code pelo perfil/tokens ou simula se client_id de teste
           final perfil = await _trocarCodePorPerfil(code);
           requestCompleter.complete(perfil);
         } else {
@@ -83,23 +82,16 @@ class GoogleAuthService {
         throw TimeoutException('Tempo limite esgotado para login com Google.');
       });
 
-      if (result != null) {
+      if (result != null && result['email'] != null && result['email']!.isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('google_user_email', result['email'] ?? '');
+        await prefs.setString('google_user_email', result['email']!);
         await prefs.setString('google_user_name', result['name'] ?? '');
+        await prefs.setString('google_user_picture', result['picture'] ?? '');
       }
 
       return result;
     } catch (e) {
-      // Fallback seguro caso o Google rejeite o client_id de desenvolvimento
-      final prefs = await SharedPreferences.getInstance();
-      const fallbackProfile = {
-        'email': 'usuario.gradlestudio@gmail.com',
-        'name': 'Usuário Gradle Studio',
-      };
-      await prefs.setString('google_user_email', fallbackProfile['email']!);
-      await prefs.setString('google_user_name', fallbackProfile['name']!);
-      return fallbackProfile;
+      rethrow;
     } finally {
       await _server?.close(force: true);
       _server = null;
@@ -120,24 +112,30 @@ class GoogleAuthService {
         final tokenData = jsonDecode(res.body);
         final accessToken = tokenData['access_token'];
 
-        final userInfoUrl = Uri.parse('https://www.googleapis.com/oauth2/v2/userinfo');
+        final userInfoUrl = Uri.parse('https://www.googleapis.com/oauth2/v3/userinfo');
         final userRes = await http.get(userInfoUrl, headers: {
           'Authorization': 'Bearer $accessToken',
         });
 
         if (userRes.statusCode == 200) {
-          final userData = jsonDecode(userRes.body);
+          final userData = jsonDecode(utf8.decode(userRes.bodyBytes));
+          final String name = userData['name']?.toString() ?? userData['given_name']?.toString() ?? 'Usuário Google';
+          final String email = userData['email']?.toString() ?? '';
+          final String picture = userData['picture']?.toString() ?? '';
+
           return {
-            'email': userData['email'] ?? 'usuario.gradlestudio@gmail.com',
-            'name': userData['name'] ?? 'Usuário Gradle Studio',
+            'email': email,
+            'name': name,
+            'picture': picture,
           };
         }
       }
     } catch (_) {}
 
     return {
-      'email': 'usuario.gradlestudio@gmail.com',
-      'name': 'Usuário Gradle Studio',
+      'email': '',
+      'name': '',
+      'picture': '',
     };
   }
 
@@ -145,5 +143,6 @@ class GoogleAuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('google_user_email');
     await prefs.remove('google_user_name');
+    await prefs.remove('google_user_picture');
   }
 }

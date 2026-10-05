@@ -834,6 +834,19 @@ class CommanderNotifier extends StateNotifier<CommanderState> {
     }
   }
 
+  Future<void> executarNoTerminalNativo([String? scriptCustomizado]) async {
+    final script = scriptCustomizado ?? state.comandoGerado;
+    if (script.trim().isEmpty) return;
+
+    adicionarLog('Abrindo script no Terminal Nativo do Windows (PowerShell)...');
+    try {
+      await _powerShellService.abrirTerminalNativoWindows(script);
+      adicionarLog('Terminal Nativo do Windows lançado.');
+    } catch (e) {
+      adicionarLog('[ERRO TERMINAL NATIVO] $e');
+    }
+  }
+
   Future<void> descompactarAgora() async {
     if (state.arquivosOrigem.isEmpty ||
         state.diretorioDestino == null ||

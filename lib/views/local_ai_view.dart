@@ -419,6 +419,13 @@ class _LocalAiViewState extends ConsumerState<LocalAiView> {
                           notifier.executarScript(_responseController.text);
                         },
                       ),
+                      IconButton(
+                        tooltip: 'Abrir no Terminal Nativo (PowerShell)',
+                        icon: const Icon(Icons.open_in_new, size: 15, color: Color(0xFF0078D4)),
+                        onPressed: () {
+                          notifier.executarNoTerminalNativo(_responseController.text);
+                        },
+                      ),
                     ],
                   ],
                 ),

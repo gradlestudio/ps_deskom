@@ -14,8 +14,8 @@
 - **Empacotamento & Distribuição:** Gradle Studio Setup Engine (GSSE v1.0) - Motor de Instalação Proprietário (`GsseManifest` + `GssePackagerService` + Stub C++ `tools/gsse_stub/` com `resource.rc` Win32 e `app_icon.ico` + Footer `GSSE_V10` + View `GsseCompilerView` + Gerador NSIS `.nsi` Multilíngue)
 - **Engine de Automação:** `PowerShellService` executando scripts temporários `.ps1` com codificação UTF-8 com BOM e decodificação resiliente de bytes.
 - **Backend de IA Local (Exclusivo da Edição Dev e Master):** LM Studio Local Server (`LocalAiRepository` + `LmStudioRepositoryImpl` REST API `http://127.0.0.1:1234/v1` / `qwen2.5-coder-3b-instruct` com timeout de 45s e streaming SSE + View `LocalAiView` + Dropdown de seleção de modelos). Injeção condicional por Riverpod (`localAiRepositoryProvider`).
-- **Licenciamento:** `LicenseService` offline baseado em HWID + SWID (`DESK-[SWID]-[HWID]`) via PowerShell + Dual-Master Key vitalícia (`GRADLE-STUDIO-DEV-2026-MASTER` e `GRADLE-STUDIO-SERVER-2026-MASTER`). Utilitários CLI em `tools/gerar_licenca.dart` e `tools/gerar_licenca.ps1`. Bot WhatsApp Admin/Multiuser em `tools/whatsapp_bot/bot.js`. Atendente Virtual Grad Bot (`fluxoAtendimento.js` e `gerenciadorAtendimento.js`). Painel PM2 no Flutter (`bot_control_dialog.dart`).
-- **Internacionalização (l10n - Etapa 5 Concluída):** `app_pt.arb`, `app_en.arb`, `app_de.arb`, `app_es.arb`, `app_fr.arb` e `app_it.arb` com `localeProvider`, exibição de GIF animado das bandeiras (`assets/flags/br.gif`, `assets/flags/uk.gif`, `assets/flags/de.gif`, `assets/flags/es.gif`, `assets/flags/fr.gif` e `assets/flags/it.gif`), injeção de tag `[LANG:XX]` na solicitação via WhatsApp e seletor rápido na TopBar. Bot WhatsApp multilíngue em `bot.js`. `WelcomeView` com hierarquia limpa. Re-renderização reativa do console terminal (`LogEntry`).
+- **Licenciamento:** `LicenseService` offline baseado em HWID + SWID (`DESK-[SWID]-[HWID]`) via PowerShell + Dual-Master Key vitalícia (`GRADLE-STUDIO-DEV-2026-MASTER` e `GRADLE-STUDIO-SERVER-2026-MASTER`). Utilitários CLI em `tools/gerar_licenca.dart` e `tools/gerar_licenca.ps1`. Bot WhatsApp extraído para o projeto independente `Grad Bot Manager`.
+- **Internacionalização (l10n - Etapa 5 Concluída):** `app_pt.arb`, `app_en.arb`, `app_de.arb`, `app_es.arb`, `app_fr.arb` e `app_it.arb` com `localeProvider`, exibição de GIF animado das bandeiras (`assets/flags/br.gif`, `assets/flags/uk.gif`, `assets/flags/de.gif`, `assets/flags/es.gif`, `assets/flags/fr.gif` e `assets/flags/it.gif`), injeção de tag `[LANG:XX]` na solicitação via WhatsApp e seletor rápido na TopBar. `WelcomeView` com hierarquia limpa. Re-renderização reativa do console terminal (`LogEntry`).
 
 ## 3. Decisões Arquiteturais e Lógicas Consolidadas
 - **Módulo 1 (Descompactar):** Sobrescrita direta de ficheiros idênticos sem duplicar pastas. Botão "X" para limpar destino (`setDiretorioDestino('')`).
@@ -27,8 +27,10 @@
 - **Módulo de IA Local (Desacoplado & UI Pronta):** Repositório abstrato `LocalAiRepository`, implementação REST `LmStudioRepositoryImpl` com SSE stream e POST chat completions, restrito às edições `MASTER` e `DEV-*`, exibido na view `LocalAiView` e atalho "IA LOCAL" na barra de navegação superior. Dropdown de modelos dinâmico via `getAvailableModels()`. Zero hardcoded strings (100% l10n).
 - **Console Terminal Reativo:** Lista `logEntries` com resolução por chave `AppLocalizations` re-renderizada automaticamente ao mudar o idioma na TopBar + suporte a streaming nativo de linhas do PowerShell (`onLog`).
 - **Conectar IA (Cloud BYOK):** Modal `ConnectAiDialog` para cadastro de chaves API (Gemini, Claude, ChatGPT, Custom REST API) salvas via `SharedPreferences`.
-- **Login com Google (OAuth2 Desktop Loopback):** `GoogleAuthService` com servidor HTTP local na porta 8088 (`127.0.0.1:8088`), parâmetro obrigatório `response_type=code`, `access_type=offline`, captura e troca de código e persistência de perfil em `GoogleLoginDialog`.
+- **Login com Google (OAuth2 Desktop Loopback):** `GoogleAuthService` com servidor HTTP local na porta 8088 (`127.0.0.1:8088`), parâmetro obrigatório `response_type=code`, `access_type=offline`, captura e troca de código e persistência de perfil real (`name`, `email`, `picture`) exibido dinamicamente em `GoogleLoginDialog`.
 - **Páginas Institucionais (GitHub Pages):** Documentos `docs/index.html`, `docs/privacy.html` e `docs/terms.html`.
+- **Boas-Vindas Obrigatórias:** O aplicativo inicia incondicionalmente na `WelcomeView` no arrasto inicial de todas as edições.
+- **Desacoplamento do Grad Bot:** Projeto do bot completamente desindexado do PS DesKom e migrado para `Grad Bot Manager`.
 
 ## 4. Estado Atual & Backlog Imediato
 - [x] Correção de codificação UTF-8 no arquivo `eula.txt`.
@@ -60,7 +62,7 @@
 - [x] Painel de Gerenciador do Grad Bot no Flutter (`BotControlDialog` / `bot_manager_service.dart`) restrito à Edição Master (Etapa 6.3).
 - [x] Sanitização de sequências ANSI e fixação UTF-8 nos comandos PM2 do `BotManagerService`.
 - [x] Ampliação do `BotControlDialog` (880px) com scroll horizontal sem quebra de tabela (`bot_control_dialog.dart`).
-- [x] Compilação em lote de todas as 8 edições do PS DesKom em `dist/` concluída.
+- [x] Compilação em lote de todas as 8 edições comerciais e dev do PS DesKom em `dist/` concluída.
 - [x] Modelagem do `GsseManifest` e implementação do `GssePackagerService` (Etapa 8.1).
 - [x] Código-fonte C++ Win32 do Stub Nativo GSSE e script `build_stub.ps1` criados e testados (`tools/gsse_stub/` e `assets/tools/gs_stub.exe`) (Etapa 8.2).
 - [x] Implementação da `GsseCompilerView` e aba "COMPILAR INSTALADOR" com 100% l10n nos 6 idiomas (Etapa 8.3).
@@ -81,4 +83,7 @@
 - [x] Implementação completa da Versão 1.1: Módulo Compactar (.zip), Modal Conectar IA (BYOK) e Login Google.
 - [x] Correção do parâmetro `response_type=code` e servidor loopback local no `GoogleAuthService` (`google_auth_service.dart`).
 - [x] Criação de `docs/index.html`, `docs/privacy.html` e `docs/terms.html` para hospedagem de termos legais via GitHub Pages.
+- [x] Captura e exibição de perfil real do Google (`name`, `email`, `picture`) no `GoogleAuthService` e `GoogleLoginDialog`.
+- [x] Inicialização obrigatória na tela de boas-vindas (`WelcomeView`) configurada no `main.dart`.
+- [x] Fase B de desacoplamento do Grad Bot e limpeza de resíduos no PS DesKom concluída.
 - [ ] Planejamento e execução de testes de integração com LM Studio ativo e validação do fluxo de automação PowerShell.

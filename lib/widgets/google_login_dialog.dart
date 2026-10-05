@@ -15,6 +15,7 @@ class _GoogleLoginDialogState extends State<GoogleLoginDialog> {
   bool _isLoggedIn = false;
   String _userName = '';
   String _userEmail = '';
+  String _userPicture = '';
   bool _isLoading = false;
 
   @override
@@ -27,12 +28,14 @@ class _GoogleLoginDialogState extends State<GoogleLoginDialog> {
     final prefs = await SharedPreferences.getInstance();
     final email = prefs.getString('google_user_email');
     final name = prefs.getString('google_user_name');
+    final picture = prefs.getString('google_user_picture');
 
     if (mounted) {
       setState(() {
         _isLoggedIn = email != null && email.isNotEmpty;
         _userEmail = email ?? '';
         _userName = name ?? '';
+        _userPicture = picture ?? '';
       });
     }
   }
@@ -42,12 +45,13 @@ class _GoogleLoginDialogState extends State<GoogleLoginDialog> {
 
     try {
       final perfil = await _authService.authenticateGoogleDesktop();
-      if (mounted && perfil != null) {
+      if (mounted && perfil != null && (perfil['email']?.isNotEmpty ?? false)) {
         setState(() {
           _isLoading = false;
           _isLoggedIn = true;
           _userEmail = perfil['email'] ?? '';
           _userName = perfil['name'] ?? '';
+          _userPicture = perfil['picture'] ?? '';
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -56,6 +60,8 @@ class _GoogleLoginDialogState extends State<GoogleLoginDialog> {
             backgroundColor: Color(0xFF107C41),
           ),
         );
+      } else {
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       if (mounted) {
@@ -75,6 +81,7 @@ class _GoogleLoginDialogState extends State<GoogleLoginDialog> {
         _isLoggedIn = false;
         _userEmail = '';
         _userName = '';
+        _userPicture = '';
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -114,14 +121,17 @@ class _GoogleLoginDialogState extends State<GoogleLoginDialog> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (_isLoggedIn) ...[
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 32,
-                backgroundColor: Color(0xFF0078D4),
-                child: Icon(Icons.person, size: 36, color: Colors.white),
+                backgroundColor: const Color(0xFF0078D4),
+                backgroundImage: _userPicture.isNotEmpty ? NetworkImage(_userPicture) : null,
+                child: _userPicture.isEmpty
+                    ? const Icon(Icons.person, size: 36, color: Colors.white)
+                    : null,
               ),
               const SizedBox(height: 12),
               Text(
-                _userName,
+                _userName.isNotEmpty ? _userName : 'Usuário Google',
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
               ),
               const SizedBox(height: 4),
