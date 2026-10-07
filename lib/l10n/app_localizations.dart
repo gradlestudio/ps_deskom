@@ -310,6 +310,30 @@ abstract class AppLocalizations {
   /// **'Atualização Disponível'**
   String get atualizacaoDisponivel;
 
+  /// No description provided for @taskIdle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pronto para iniciar a operação'**
+  String get taskIdle;
+
+  /// No description provided for @taskRunning.
+  ///
+  /// In pt, this message translates to:
+  /// **'Executando operação...'**
+  String get taskRunning;
+
+  /// No description provided for @taskCompleted.
+  ///
+  /// In pt, this message translates to:
+  /// **'Operação concluída com sucesso!'**
+  String get taskCompleted;
+
+  /// No description provided for @taskFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Falha na operação.'**
+  String get taskFailed;
+
   /// No description provided for @aguardandoAcao.
   ///
   /// In pt, this message translates to:
@@ -835,7 +859,7 @@ abstract class AppLocalizations {
   /// No description provided for @abaCompilarInstalador.
   ///
   /// In pt, this message translates to:
-  /// **'COMPILAR INSTALADOR'**
+  /// **'COMPILADOR'**
   String get abaCompilarInstalador;
 
   /// No description provided for @tituloCompiladorGsse.
@@ -973,7 +997,7 @@ abstract class AppLocalizations {
   /// No description provided for @btnCompilarSelecionados.
   ///
   /// In pt, this message translates to:
-  /// **'COMPILAR INSTALADORES SELECIONADOS'**
+  /// **'COMPILAR'**
   String get btnCompilarSelecionados;
 
   /// No description provided for @iaLocal.

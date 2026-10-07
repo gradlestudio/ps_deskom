@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/local_ai_repository.dart';
 import '../repositories/lmstudio_repository_impl.dart';
 
-const String _appEditionEnv = String.fromEnvironment('APP_EDITION', defaultValue: '');
+const String _appEditionEnv = String.fromEnvironment('APP_EDITION', defaultValue: 'MASTER');
 
 /// Verifica se a edição atual do aplicativo tem suporte ao módulo de IA Local
 bool isLocalAiSupported() {

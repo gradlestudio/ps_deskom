@@ -12,6 +12,7 @@ class GsseManifest {
   final bool createStartMenuShortcut;
   final bool runAfterInstall;
   final String? eulaText;
+  final String? iconPath;
 
   GsseManifest({
     required this.appName,
@@ -25,6 +26,7 @@ class GsseManifest {
     this.createStartMenuShortcut = true,
     this.runAfterInstall = true,
     this.eulaText,
+    this.iconPath,
   });
 
   Map<String, dynamic> toMap() {
@@ -40,6 +42,7 @@ class GsseManifest {
       'createStartMenuShortcut': createStartMenuShortcut,
       'runAfterInstall': runAfterInstall,
       'eulaText': eulaText,
+      'iconPath': iconPath,
     };
   }
 
@@ -58,6 +61,7 @@ class GsseManifest {
       createStartMenuShortcut: map['createStartMenuShortcut'] as bool? ?? true,
       runAfterInstall: map['runAfterInstall'] as bool? ?? true,
       eulaText: map['eulaText'] as String?,
+      iconPath: map['iconPath'] as String?,
     );
   }
 

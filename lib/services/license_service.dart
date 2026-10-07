@@ -28,11 +28,11 @@ class LicenseService {
 
   LicenseService({
     PowerShellService? powerShellService,
-    this.edicaoAtual = AppEdition.devPro,
+    this.edicaoAtual = AppEdition.master,
   }) : _powerShellService = powerShellService ?? PowerShellService();
 
   Future<String> obterHwid() async {
-    const String envEdition = String.fromEnvironment('APP_EDITION', defaultValue: '');
+    const String envEdition = String.fromEnvironment('APP_EDITION', defaultValue: 'MASTER');
     final String editionCode = envEdition.isNotEmpty ? envEdition : edicaoAtual.code;
 
     try {
@@ -72,7 +72,7 @@ Write-Output \$uuid
 
   Future<Map<String, dynamic>> validarEAtivarChave(
       String chaveInput, String hwid) async {
-    const String envEdition = String.fromEnvironment('APP_EDITION', defaultValue: '');
+    const String envEdition = String.fromEnvironment('APP_EDITION', defaultValue: 'MASTER');
     if (envEdition == 'MASTER') {
       const tipo = 'Licença Master (Admin/Creator)';
       await _salvarNoPrefs(masterKeyDev, tipo);
@@ -129,7 +129,7 @@ Write-Output \$uuid
   }
 
   Future<Map<String, dynamic>> carregarStatusLicenca(String hwid) async {
-    const String envEdition = String.fromEnvironment('APP_EDITION', defaultValue: '');
+    const String envEdition = String.fromEnvironment('APP_EDITION', defaultValue: 'MASTER');
     if (envEdition == 'MASTER') {
       return {'ativado': true, 'tipo': 'Licença Master (Admin/Creator)', 'isDev': true};
     }

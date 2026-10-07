@@ -114,6 +114,18 @@ class AppLocalizationsDe extends AppLocalizations {
   String get atualizacaoDisponivel => 'Update Verfügbar';
 
   @override
+  String get taskIdle => 'Bereit zum Starten des Vorgangs';
+
+  @override
+  String get taskRunning => 'Vorgang wird ausgeführt...';
+
+  @override
+  String get taskCompleted => 'Vorgang erfolgreich abgeschlossen!';
+
+  @override
+  String get taskFailed => 'Vorgang fehlgeschlagen.';
+
+  @override
   String get aguardandoAcao => 'Warten auf Benutzeraktion...';
 
   @override
@@ -402,7 +414,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get edicaoMasterAtiva => 'Master-Edition — Aktiver Administrator';
 
   @override
-  String get abaCompilarInstalador => 'INSTALLER ERSTELLEN';
+  String get abaCompilarInstalador => 'KOMPILIERER';
 
   @override
   String get tituloCompiladorGsse =>
@@ -475,7 +487,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get selecionarTodasEdicoes => 'Alle Auswählen';
 
   @override
-  String get btnCompilarSelecionados => 'AUSGEWÄHLTE INSTALLER ERSTELLEN';
+  String get btnCompilarSelecionados => 'KOMPILIEREN';
 
   @override
   String get iaLocal => 'LOKALE KI';

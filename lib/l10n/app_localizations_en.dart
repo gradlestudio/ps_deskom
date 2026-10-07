@@ -114,6 +114,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get atualizacaoDisponivel => 'Update Available';
 
   @override
+  String get taskIdle => 'Ready to start operation';
+
+  @override
+  String get taskRunning => 'Processing operation...';
+
+  @override
+  String get taskCompleted => 'Operation completed successfully!';
+
+  @override
+  String get taskFailed => 'Operation failed.';
+
+  @override
   String get aguardandoAcao => 'Awaiting user action...';
 
   @override
@@ -398,7 +410,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get edicaoMasterAtiva => 'Master Edition — Active Administrator';
 
   @override
-  String get abaCompilarInstalador => 'BUILD INSTALLER';
+  String get abaCompilarInstalador => 'COMPILER';
 
   @override
   String get tituloCompiladorGsse =>
@@ -470,7 +482,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selecionarTodasEdicoes => 'Select All';
 
   @override
-  String get btnCompilarSelecionados => 'BUILD SELECTED INSTALLERS';
+  String get btnCompilarSelecionados => 'COMPILE';
 
   @override
   String get iaLocal => 'LOCAL AI';

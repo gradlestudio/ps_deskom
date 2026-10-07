@@ -24,13 +24,20 @@
 - **Módulo 4 (Organizar):** Categorização automática por extensão com regras personalizadas desmarcadas por padrão (`false`), suporte recursivo e botão "X" para limpar diretório raiz (`setDiretorioOrganizar('')`).
 - **Módulo 5 (Procurar / Duplicados):** SHA-256, pré-visualização de áudio/vídeo/imagem e **Exclusão Segura** enviando para a Lixeira do Windows via API .NET (`[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile` com `SendToRecycleBin`). Checkboxes visíveis de categorias de filtro.
 - **Etapa 8 (Instalador Proprietário GSSE v1.0 Concluída):** Formato binário autônomo com footer de 32 bytes (`GSSE_V10`), ícone `.ico` oficial e bloco de metadados Win32 (`VS_VERSION_INFO`), extração de manifesto JSON, descompactação de payload ZIP em tempo de execução via Stub C++ Win32 (`tools/gsse_stub/`), gerador `.nsi` multilíngue e painel gerador `GsseCompilerView`.
-- **Módulo de IA Local (Desacoplado & UI Pronta):** Repositório abstrato `LocalAiRepository`, implementação REST `LmStudioRepositoryImpl` com SSE stream e POST chat completions, restrito às edições `MASTER` e `DEV-*`, exibido na view `LocalAiView` e atalho "IA LOCAL" na barra de navegação superior. Dropdown de modelos dinâmico via `getAvailableModels()`. Zero hardcoded strings (100% l10n).
+- **Módulo de IA Local (Desacoplado & UI Pronta):** Repositório abstrato `LocalAiRepository`, implementação REST `LmStudioRepositoryImpl` com SSE stream e POST chat completions, restrito às edições `MASTER` e `DEV-*`, exibido na view `LocalAiView` e atalho "IA LOCAL" na barra de navigation superior. Dropdown de modelos dinâmico via `getAvailableModels()`. Zero hardcoded strings (100% l10n).
 - **Console Terminal Reativo:** Lista `logEntries` com resolução por chave `AppLocalizations` re-renderizada automaticamente ao mudar o idioma na TopBar + suporte a streaming nativo de linhas do PowerShell (`onLog`).
-- **Conectar IA (Cloud BYOK):** Modal `ConnectAiDialog` para cadastro de chaves API (Gemini, Claude, ChatGPT, Custom REST API) salvas via `SharedPreferences`.
+- **Conectar IA (Cloud BYOK):** Modal `ConnectAiDialog` para cadastro de chaves API (Gemini clouds, Claude, ChatGPT, Custom REST API) salvas via `SharedPreferences`.
 - **Login com Google (OAuth2 Desktop Loopback):** `GoogleAuthService` com servidor HTTP local na porta 8088 (`127.0.0.1:8088`), parâmetro obrigatório `response_type=code`, `access_type=offline`, captura e troca de código e persistência de perfil real (`name`, `email`, `picture`) exibido dinamicamente em `GoogleLoginDialog`.
 - **Páginas Institucionais (GitHub Pages):** Documentos `docs/index.html`, `docs/privacy.html` e `docs/terms.html`.
 - **Boas-Vindas Obrigatórias:** O aplicativo inicia incondicionalmente na `WelcomeView` no arrasto inicial de todas as edições.
 - **Desacoplamento do Grad Bot:** Projeto do bot completamente desindexado do PS DesKom e migrado para `Grad Bot Manager`.
+- **ProgressStatusCard na GSSE View:** Substituição do console bruto por card visual com estados (Ocioso, Processando, Sucesso, Falha).
+- **Console Global Condicional & Fallback MASTER:** Ocultação do console de rodapé e botão "Limpar Console" nas abas Compilador e IA Local, e fallback nativo para `MASTER` em `APP_EDITION`.
+- **Layout Responsivo e UI Compilador:** Wraps nos cabeçalhos de Origem e Destino zerando overflows, campos do compilador iniciados vazios com obrigatoriedade e validação reativa do botão de compilar.
+- **Auditoria Estrutural de Ponta a Ponta:** Proteção de inicialização `windowManager`, eliminação de `listSync` da thread principal do compilador e desacoplamento com `ListenableBuilder`.
+- **GSSE Packager Portability:** Neutralização total de `Directory.current`, resolução dinâmica de diretórios via `Platform.resolvedExecutable`, busca portátil do NSIS e extração segura de ícone para `%TEMP%`.
+- **Win32 WindowManager Initialization:** Inicialização síncrona com `backgroundColor: Color(0xFF1E1E1E)` e encadeamento sequencial prevenindo erros de DWM.
+- **FilePicker Win32 Hardening:** Substituição do FilePicker por `FolderBrowserDialog` isolado via PowerShell nativo em `lib/views/gsse_compiler_view.dart`, zerando falhas de memória e crashes.
 
 ## 4. Estado Atual & Backlog Imediato
 - [x] Correção de codificação UTF-8 no arquivo `eula.txt`.
@@ -86,4 +93,12 @@
 - [x] Captura e exibição de perfil real do Google (`name`, `email`, `picture`) no `GoogleAuthService` e `GoogleLoginDialog`.
 - [x] Inicialização obrigatória na tela de boas-vindas (`WelcomeView`) configurada no `main.dart`.
 - [x] Fase B de desacoplamento do Grad Bot e limpeza de resíduos no PS DesKom concluída.
+- [x] Compilador GSSE evoluído para suporte duplo (Modo Universal Single App e Modo Lote PS DesKom).
+- [x] Substituição do console bruto pelo ProgressStatusCard na visão do compilador GSSE.
+- [x] Ocultação condicional do console de rodapé e fallback nativo para edição MASTER configurados.
+- [x] Refinamento de UI/UX, cabeçalhos responsivos com Wrap e validação de botões no compilador GSSE.
+- [x] Auditoria estrutural de ponta a ponta e estabilização do core concluída.
+- [x] Extração dinâmica de ícone do instalador para %TEMP% no GSSE Packager concluída.
+- [x] Correção estrutural da inicialização Win32 e WindowManager no main.dart concluída.
+- [x] Substituição do FilePicker por FolderBrowserDialog isolado via PowerShell nativo concluída.
 - [ ] Planejamento e execução de testes de integração com LM Studio ativo e validação do fluxo de automação PowerShell.

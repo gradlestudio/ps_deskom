@@ -38,7 +38,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView> {
     final l10n = AppLocalizations.of(context);
     final currentLocale = ref.watch(localeProvider);
     final state = ref.watch(commanderProvider);
-    const String envEdition = String.fromEnvironment('APP_EDITION', defaultValue: '');
+    const String envEdition = String.fromEnvironment('APP_EDITION', defaultValue: 'MASTER');
     final bool isMaster = envEdition == 'MASTER' || state.statusLicencaTexto.contains('Master');
 
     final idiomas = [

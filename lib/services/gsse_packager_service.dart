@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
 import '../models/gsse_manifest.dart';
 
@@ -9,21 +10,41 @@ class GssePackagerService {
   static const String magicSignature = 'GSSE_V10';
   static const int footerByteSize = 32;
 
-  /// Localiza o executável do NSIS (makensis.exe) no sistema
+  /// Retorna o diretório raiz absoluto onde o executável do aplicativo está instalado/rodando
+  String get appDir => File(Platform.resolvedExecutable).parent.path;
+
+  /// Localiza o executável do NSIS (makensis.exe) de forma portátil e neutra
   Future<String?> localizarMakensis() async {
-    final candidatePaths = [
-      r'C:\Program Files (x86)\NSIS\makensis.exe',
-      r'C:\Program Files\NSIS\makensis.exe',
-      p.join(Directory.current.path, 'tools', 'nsis', 'makensis.exe'),
+    final String currentAppDir = appDir;
+    final List<String> candidatePaths = [
+      p.join(currentAppDir, 'tools', 'nsis', 'makensis.exe'),
     ];
 
-    for (final path in candidatePaths) {
-      if (await File(path).exists()) {
-        return path;
-      }
+    // Variável de ambiente customizada NSIS_DIR
+    final String? nsisEnvDir = Platform.environment['NSIS_DIR'];
+    if (nsisEnvDir != null && nsisEnvDir.trim().isNotEmpty) {
+      candidatePaths.add(p.join(nsisEnvDir.trim(), 'makensis.exe'));
     }
 
-    // Tenta via PATH do sistema
+    // Variáveis de ambiente padrão do Windows ProgramFiles e ProgramFiles(x86)
+    final String? pf = Platform.environment['ProgramFiles'];
+    if (pf != null && pf.trim().isNotEmpty) {
+      candidatePaths.add(p.join(pf.trim(), 'NSIS', 'makensis.exe'));
+    }
+    final String? pfx86 = Platform.environment['ProgramFiles(x86)'];
+    if (pfx86 != null && pfx86.trim().isNotEmpty) {
+      candidatePaths.add(p.join(pfx86.trim(), 'NSIS', 'makensis.exe'));
+    }
+
+    for (final path in candidatePaths) {
+      try {
+        if (await File(path).exists()) {
+          return path;
+        }
+      } catch (_) {}
+    }
+
+    // Busca via PATH global do Windows
     try {
       final res = await Process.run('where', ['makensis.exe']);
       if (res.exitCode == 0 && res.stdout.toString().trim().isNotEmpty) {
@@ -34,9 +55,32 @@ class GssePackagerService {
     return null;
   }
 
+  /// Localiza de forma portátil o executável stub do GSSE no sistema
+  Future<File> _localizarStubFile(File? customStub) async {
+    if (customStub != null && await customStub.exists()) {
+      return customStub;
+    }
+
+    final String currentAppDir = appDir;
+    final candidateStubPaths = [
+      p.join(currentAppDir, 'data', 'flutter_assets', 'assets', 'tools', 'gs_stub.exe'),
+      p.join(currentAppDir, 'assets', 'tools', 'gs_stub.exe'),
+      p.join(currentAppDir, 'tools', 'gsse_stub', 'gs_stub.exe'),
+    ];
+
+    for (final path in candidateStubPaths) {
+      final file = File(path);
+      if (await file.exists()) {
+        return file;
+      }
+    }
+
+    return File(candidateStubPaths.first);
+  }
+
   /// Gera e compila um instalador nativo profissional utilizando a engine NSIS (makensis.exe)
   /// com suporte a 7 idiomas nativos e detecção de DDI / Locale do Windows,
-  /// com fallback para empacotamento binário GSSE se o NSIS não estiver instalado.
+  /// com fallback para empacotador binário GSSE se o NSIS não estiver instalado.
   Future<File> buildInstaller({
     required Directory sourceDir,
     File? stubExecutable,
@@ -62,9 +106,10 @@ class GssePackagerService {
       );
     } else {
       onProgress?.call('NSIS não encontrado no sistema. Utilizando empacotador binário nativo GSSE...', 0.10);
+      final resolvedStub = await _localizarStubFile(stubExecutable);
       return await _buildInstallerWithBinaryPacker(
         sourceDir: sourceDir,
-        stubExecutable: stubExecutable ?? File(p.join(Directory.current.path, 'assets', 'tools', 'gs_stub.exe')),
+        stubExecutable: resolvedStub,
         outputFile: outputFile,
         manifest: manifest,
         onProgress: onProgress,
@@ -82,14 +127,42 @@ class GssePackagerService {
   }) async {
     onProgress?.call('Gerando script de instalação NSIS multilíngue (.nsi)...', 0.15);
 
-    final iconFile = File(p.join(Directory.current.path, 'tools', 'gsse_stub', 'app_icon.ico'));
-    final String iconPath = (await iconFile.exists())
-        ? iconFile.path
-        : p.join(Directory.current.path, 'assets', 'icones', 'PS-DesKom.ico');
+    final Directory tempBuildDir = await Directory.systemTemp.createTemp('gsse_build_');
+    String? iconPathToUse;
+
+    // 1. Caso o usuário tenha selecionado um ícone customizado .ico existente em disco
+    if (manifest.iconPath != null &&
+        manifest.iconPath!.trim().isNotEmpty &&
+        await File(manifest.iconPath!).exists()) {
+      iconPathToUse = manifest.iconPath!;
+    } else {
+      // 2. Extração confiável do ícone padrão dos assets do Flutter para %TEMP%
+      try {
+        final ByteData data = await rootBundle.load('assets/icones/PS-DesKom.ico');
+        final Uint8List bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+        final File tempIconFile = File(p.join(tempBuildDir.path, 'app_icon.ico'));
+        await tempIconFile.writeAsBytes(bytes, flush: true);
+        iconPathToUse = tempIconFile.path;
+      } catch (e) {
+        // Fallback local caso o carregamento de asset falhe
+        final String currentAppDir = appDir;
+        final altIconFile1 = File(p.join(currentAppDir, 'data', 'flutter_assets', 'assets', 'icones', 'PS-DesKom.ico'));
+        final altIconFile2 = File(p.join(currentAppDir, 'assets', 'icones', 'PS-DesKom.ico'));
+        if (await altIconFile1.exists()) {
+          iconPathToUse = altIconFile1.path;
+        } else if (await altIconFile2.exists()) {
+          iconPathToUse = altIconFile2.path;
+        }
+      }
+    }
+
+    final String muiIconDirectives = (iconPathToUse != null && await File(iconPathToUse).exists())
+        ? '!define MUI_ICON "${iconPathToUse.replaceAll(r'\', '/')}"\n!define MUI_UNICON "${iconPathToUse.replaceAll(r'\', '/')}"'
+        : '';
 
     final String tempNsiPath = p.join(
-      Directory.systemTemp.path,
-      'gsse_build_${DateTime.now().millisecondsSinceEpoch}.nsi',
+      tempBuildDir.path,
+      'gsse_script.nsi',
     );
 
     final runMacro = manifest.runAfterInstall
@@ -120,8 +193,7 @@ OutFile "${outputFile.path.replaceAll(r'\', '/')}"
 InstallDir "\$PROGRAMFILES64\\\${PUBLISHER}\\\${APP_NAME}"
 InstallDirRegKey HKLM "Software\\\${PUBLISHER}\\\${APP_NAME}" "InstallLocation"
 
-!define MUI_ICON "${iconPath.replaceAll(r'\', '/')}"
-!define MUI_UNICON "${iconPath.replaceAll(r'\', '/')}"
+$muiIconDirectives
 
 VIProductVersion "${manifest.version}.0"
 VIAddVersionKey "CompanyName" "\${PUBLISHER}"
@@ -183,49 +255,58 @@ Section "Uninstall"
 SectionEnd
 ''';
 
-    final tempNsiFile = File(tempNsiPath);
-    await tempNsiFile.writeAsString(nsiContent, encoding: utf8);
+    try {
+      final tempNsiFile = File(tempNsiPath);
+      await tempNsiFile.writeAsString(nsiContent, encoding: utf8);
 
-    onProgress?.call('Compilando instalador via NSIS Engine (makensis.exe)...', 0.30);
+      onProgress?.call('Compilando instalador via NSIS Engine (makensis.exe)...', 0.30);
 
-    if (await outputFile.exists()) {
-      await outputFile.delete();
-    }
-    await outputFile.parent.create(recursive: true);
-
-    final process = await Process.start(
-      makensisPath,
-      ['/V3', tempNsiPath],
-      runInShell: true,
-    );
-
-    double currentProgress = 0.30;
-    process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-      if (line.trim().isNotEmpty) {
-        currentProgress = (currentProgress + 0.02).clamp(0.30, 0.95);
-        onProgress?.call(line.trim(), currentProgress);
+      if (await outputFile.exists()) {
+        try {
+          await outputFile.delete();
+        } catch (_) {}
       }
-    });
+      await outputFile.parent.create(recursive: true);
 
-    process.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-      if (line.trim().isNotEmpty) {
-        onProgress?.call('[NSIS AVISO/ERRO] ${line.trim()}', currentProgress);
+      final String makensisWorkingDir = File(makensisPath).parent.path;
+
+      final process = await Process.start(
+        makensisPath,
+        ['/V3', tempNsiPath],
+        workingDirectory: makensisWorkingDir,
+        runInShell: false,
+      );
+
+      double currentProgress = 0.30;
+      process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
+        if (line.trim().isNotEmpty) {
+          currentProgress = (currentProgress + 0.02).clamp(0.30, 0.95);
+          onProgress?.call(line.trim(), currentProgress);
+        }
+      });
+
+      process.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
+        if (line.trim().isNotEmpty) {
+          onProgress?.call('[NSIS AVISO/ERRO] ${line.trim()}', currentProgress);
+        }
+      });
+
+      final exitCode = await process.exitCode;
+
+      if (exitCode != 0 || !await outputFile.exists()) {
+        throw Exception('Falha na compilação do NSIS (exitCode $exitCode). Verifique os logs.');
       }
-    });
 
-    final exitCode = await process.exitCode;
-
-    // Limpeza do script temporário
-    if (await tempNsiFile.exists()) {
-      await tempNsiFile.delete();
+      onProgress?.call('Instalador NSIS/GSSE gerado com sucesso!', 1.0);
+      return outputFile;
+    } finally {
+      // Limpeza limpa e assíncrona do diretório temporário isolado
+      try {
+        if (await tempBuildDir.exists()) {
+          await tempBuildDir.delete(recursive: true);
+        }
+      } catch (_) {}
     }
-
-    if (exitCode != 0 || !await outputFile.exists()) {
-      throw Exception('Falha na compilação do NSIS (exitCode $exitCode). Verifique os logs.');
-    }
-
-    onProgress?.call('Instalador NSIS/GSSE gerado com sucesso!', 1.0);
-    return outputFile;
   }
 
   /// Método legado de fallback: empacotamento binário com footer de 32 bytes (GSSE_V10)

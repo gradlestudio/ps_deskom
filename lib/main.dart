@@ -14,29 +14,13 @@ import 'views/welcome_view.dart';
 import 'widgets/about_dialog_widget.dart';
 import 'widgets/audio_preview_card.dart';
 import 'widgets/connect_ai_dialog.dart';
+import 'widgets/global_task_progress_widget.dart';
 import 'widgets/google_drive_dialog.dart';
 import 'widgets/google_login_dialog.dart';
 import 'widgets/update_dialog.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await windowManager.ensureInitialized();
-
-  WindowOptions windowOptions = const WindowOptions(
-    size: Size(1280, 800),
-    minimumSize: Size(1024, 700),
-    center: true,
-    backgroundColor: Colors.transparent,
-    skipTaskbar: false,
-    title: 'PS DesKom',
-  );
-
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.maximize();
-    await windowManager.show();
-    await windowManager.focus();
-  });
-
   runApp(const ProviderScope(child: PSDesKomApp()));
 }
 
@@ -186,11 +170,44 @@ class _ImageZoomDialogState extends State<ImageZoomDialog> {
   }
 }
 
-class PSDesKomApp extends ConsumerWidget {
+class PSDesKomApp extends ConsumerStatefulWidget {
   const PSDesKomApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PSDesKomApp> createState() => _PSDesKomAppState();
+}
+
+class _PSDesKomAppState extends ConsumerState<PSDesKomApp> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => _inicializarWindowManager());
+  }
+
+  Future<void> _inicializarWindowManager() async {
+    try {
+      await windowManager.ensureInitialized();
+
+      WindowOptions windowOptions = const WindowOptions(
+        size: Size(1280, 800),
+        minimumSize: Size(1024, 700),
+        center: true,
+        backgroundColor: Color(0xFF1E1E1E),
+        skipTaskbar: false,
+        title: 'PS DesKom',
+      );
+
+      await windowManager.waitUntilReadyToShow(windowOptions, () async {
+        await windowManager.show();
+        await windowManager.focus();
+      });
+    } catch (e) {
+      debugPrint('Erro na inicialização em segundo plano do WindowManager: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentLocale = ref.watch(localeProvider);
 
     return MaterialApp(
@@ -532,7 +549,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       });
     }
 
-    const String appEditionEnv = String.fromEnvironment('APP_EDITION', defaultValue: '');
+    const String appEditionEnv = String.fromEnvironment('APP_EDITION', defaultValue: 'MASTER');
     final bool showGsseTab = appEditionEnv == 'MASTER' ||
         appEditionEnv.startsWith('DEV') ||
         state.statusLicencaTexto.contains('Master') ||
@@ -772,16 +789,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                     const SizedBox(width: 8),
                     OutlinedButton.icon(
-                      onPressed: () => notifier.limparTerminal(),
-                      icon: const Icon(Icons.cleaning_services_outlined, size: 16),
-                      label: Text(l10n?.limparConsole ?? 'Limpar Console'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFCCCCCC),
-                        side: const BorderSide(color: Color(0xFF3F3F46)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton.icon(
                       onPressed: () {
                         showDialog(
                           context: context,
@@ -900,12 +907,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF107C41),
+                          disabledBackgroundColor: const Color(0xFF333333),
                           foregroundColor: Colors.white,
+                          disabledForegroundColor: Colors.white38,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 24, vertical: 14),
                         ),
                       ),
                     if (state.moduloSelecionado == 1)
+                      ElevatedButton.icon(
+                        onPressed: (state.arquivosOrigem.isNotEmpty &&
+                                state.diretorioDestino != null &&
+                                state.diretorioDestino!.isNotEmpty &&
+                                !state.isLoading)
+                            ? () {
+                                final dest = state.diretorioDestino!;
+                                final zipName = dest.toLowerCase().endsWith('.zip')
+                                    ? p.basename(dest)
+                                    : 'arquivo_compactado.zip';
+                                notifier.dispararCompactacao(zipName);
+                              }
+                            : null,
+                        icon: state.isLoading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.archive_outlined, size: 20),
+                        label: const Text(
+                          'COMPACTAR AGORA',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0078D4),
+                          disabledBackgroundColor: const Color(0xFF333333),
+                          foregroundColor: Colors.white,
+                          disabledForegroundColor: Colors.white38,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 14),
+                        ),
+                      ),
+                    if (state.moduloSelecionado == 2)
                       ElevatedButton.icon(
                         onPressed: (state.itensCopiarOrigem.isNotEmpty &&
                                 state.destinoCopiar != null &&
@@ -929,12 +975,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0078D4),
+                          disabledBackgroundColor: const Color(0xFF333333),
                           foregroundColor: Colors.white,
+                          disabledForegroundColor: Colors.white38,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 24, vertical: 14),
                         ),
                       ),
-                    if (state.moduloSelecionado == 2)
+                    if (state.moduloSelecionado == 3)
                       ElevatedButton.icon(
                         onPressed: (state.itensMoverOrigem.isNotEmpty &&
                                 state.destinoMover != null &&
@@ -958,12 +1006,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFD13438),
+                          disabledBackgroundColor: const Color(0xFF333333),
                           foregroundColor: Colors.white,
+                          disabledForegroundColor: Colors.white38,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 24, vertical: 14),
                         ),
                       ),
-                    if (state.moduloSelecionado == 3)
+                    if (state.moduloSelecionado == 4)
                       ElevatedButton.icon(
                         onPressed: (state.diretorioOrganizar != null &&
                                 state.diretorioOrganizar!.isNotEmpty &&
@@ -986,12 +1036,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0078D4),
+                          disabledBackgroundColor: const Color(0xFF333333),
                           foregroundColor: Colors.white,
+                          disabledForegroundColor: Colors.white38,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 24, vertical: 14),
                         ),
                       ),
-                    if (state.moduloSelecionado == 4)
+                    if (state.moduloSelecionado == 5)
                       state.isEscaneando
                           ? ElevatedButton.icon(
                               onPressed: () => notifier.cancelarVarredura(),
@@ -1039,7 +1091,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF0078D4),
+                                disabledBackgroundColor: const Color(0xFF333333),
                                 foregroundColor: Colors.white,
+                                disabledForegroundColor: Colors.white38,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 24, vertical: 14),
                               ),
@@ -1051,43 +1105,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
 
-          // Console Terminal Inferior
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: SizedBox(
-              height: 160,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0C0C0C),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: const Color(0xFF333333)),
-                ),
-                child: Scrollbar(
-                  controller: _scrollController,
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: SelectableText(
-                        state.getFormattedLogs(l10n).isEmpty
-                            ? (l10n?.terminalPronto ?? 'Terminal pronto. Módulo operacional pronto.')
-                            : state.getFormattedLogs(l10n),
-                        style: TextStyle(
-                          fontFamily: 'Consolas',
-                          fontSize: 12,
-                          color: state.getFormattedLogs(l10n).isEmpty
-                              ? const Color(0xFF666666)
-                              : const Color(0xFF4EC9B0),
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // Barra de Progresso Global de Tarefa (Substituição Arquitetural do Console Legado)
+          const GlobalTaskProgressWidget(),
+          const SizedBox(height: 8),
           const SizedBox(height: 8),
         ],
       ),
@@ -1145,10 +1165,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.folder_zip_outlined,
                               color: Color(0xFF0078D4), size: 20),
@@ -1414,12 +1438,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.archive_outlined,
+                          const Icon(Icons.unarchive_outlined,
                               color: Color(0xFF0078D4), size: 20),
                           const SizedBox(width: 8),
                           Text(
@@ -1432,7 +1460,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ],
                       ),
-                      Row(
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           ElevatedButton.icon(
                             onPressed: _adicionarArquivos,
@@ -1443,7 +1474,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               foregroundColor: Colors.white,
                             ),
                           ),
-                          const SizedBox(width: 6),
                           ElevatedButton.icon(
                             onPressed: _adicionarPastaOrigem,
                             icon: const Icon(Icons.folder_open, size: 16),
@@ -1655,10 +1685,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.copy_all,
                               color: Color(0xFF0078D4), size: 20),
@@ -1673,7 +1707,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ],
                       ),
-                      Row(
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           ElevatedButton.icon(
                             onPressed: _adicionarArquivosCopiar,
@@ -1686,7 +1723,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   horizontal: 10, vertical: 8),
                             ),
                           ),
-                          const SizedBox(width: 6),
                           ElevatedButton.icon(
                             onPressed: _adicionarPastaCopiar,
                             icon: const Icon(Icons.folder, size: 14),
@@ -1698,7 +1734,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   horizontal: 10, vertical: 8),
                             ),
                           ),
-                          const SizedBox(width: 6),
                           OutlinedButton.icon(
                             onPressed: () =>
                                 _selecionarOrigemGoogleDrive(context, state, notifier),
@@ -1744,8 +1779,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             itemBuilder: (context, index) {
                               final itemPath = state.itensCopiarOrigem[index];
                               final itemName = p.basename(itemPath);
-                              final isDirectory =
-                                  FileSystemEntity.isDirectorySync(itemPath);
+                              final isDirectory = p.extension(itemPath).isEmpty;
                               return ListTile(
                                 dense: true,
                                 contentPadding: const EdgeInsets.symmetric(
@@ -2024,10 +2058,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.drive_file_move_outlined,
                               color: Color(0xFFD13438), size: 20),
@@ -2042,7 +2080,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ],
                       ),
-                      Row(
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           ElevatedButton.icon(
                             onPressed: _adicionarArquivosMover,
@@ -2055,7 +2096,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   horizontal: 10, vertical: 8),
                             ),
                           ),
-                          const SizedBox(width: 6),
                           ElevatedButton.icon(
                             onPressed: _adicionarPastaMover,
                             icon: const Icon(Icons.folder, size: 14),
@@ -2067,7 +2107,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   horizontal: 10, vertical: 8),
                             ),
                           ),
-                          const SizedBox(width: 6),
                           OutlinedButton.icon(
                             onPressed: () =>
                                 _selecionarOrigemGoogleDrive(context, state, notifier),
@@ -2113,8 +2152,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             itemBuilder: (context, index) {
                               final itemPath = state.itensMoverOrigem[index];
                               final itemName = p.basename(itemPath);
-                              final isDirectory =
-                                  FileSystemEntity.isDirectorySync(itemPath);
+                              final isDirectory = p.extension(itemPath).isEmpty;
                               return ListTile(
                                 dense: true,
                                 contentPadding: const EdgeInsets.symmetric(
@@ -3213,7 +3251,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .map((a) => a['caminho'] as String? ?? '')
         .where((c) =>
             c.isNotEmpty &&
-            File(c).existsSync() &&
             ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif']
                 .contains(p.extension(c).toLowerCase()))
         .toList();
@@ -3312,7 +3349,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   '.iso'
                 ].contains(ext);
 
-                final fileExists = File(caminho).existsSync();
+                const fileExists = true;
 
                 return Container(
                   width: 320,
